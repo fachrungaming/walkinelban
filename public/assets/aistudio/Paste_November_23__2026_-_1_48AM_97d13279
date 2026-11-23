@@ -1,0 +1,399 @@
+# Product Requirements Document (PRD): Walk-In ElBan — 3D Virtual Airport Technology Learning Lab
+
+| Atribut Dokumen | Detail |
+| --- | --- |
+| **Nama Produk** | Walk-In ElBan (3D Virtual Airport Technology & Electronics Learning Lab) |
+| **Referensi Pola UX** | Adaptasi arsitektur interaktif 3D *Walk-In* (`skincare.lifistudio.com`) ke domain Edukasi Teknik Penerbangan |
+| **Tipe Produk** | Web-Based Interactive 3D Learning Media & Virtual Practicum Simulator |
+| **Platform** | Web Browser (Single Page Application berbasis WebGL / Three.js) |
+| **Cakupan Materi Awal** | 6 Sistem Utama Elektronika Bandara (ElBan) & 25+ Modul Komponen Inti |
+| **Bahasa Antarmuka** | Bahasa Indonesia (Default) & Bahasa Inggris Teknis Aviasi (`EN`) |
+
+---
+
+## 1. Ringkasan Eksekutif & Tujuan Produk
+
+### 1.1 Latar Belakang
+
+Pembelajaran fasilitas **Airport Technology / Elektronika Bandara (ElBan)** di kelas maupun laboratorium sering terkendala akses terbatas ke peralatan operasional aktif di terminal, risiko radiasi/tegangan tinggi saat membongkar unit asli (seperti X-Ray Generator 100–180 kV), serta sulitnya memvisualisasikan keterkaitan antar-komponen elektronika di dalam satu sistem terpadu.
+
+**Walk-In ElBan** mengadaptasi pendekatan eksplorasi ruang 3D bergaya *walk-in* ke dalam replika terminal dan ruang peralatan bandara virtual. Alih-alih menjelajahi rak toko dan memasukkan barang ke keranjang belanja, peserta didik berjalan menyusuri area bandara (SCP, ruang server, concourse, perimeter), membedah peralatan ElBan secara 3D (*exploded view*), menyimulasikan alur sinyal elektronika, mengumpulkan catatan komponen ke **Logbook Praktikum**, lalu menyelesaikan uji pemahaman di **Terminal Operation Center (TOC)**.
+
+### 1.2 Tujuan Produk (Product Objectives)
+
+* **Menghadirkan simulasi pengenalan lapangan (virtual site visit) berbasis web:** Memberikan pengalaman berjalan langsung di lingkungan bandara 3D untuk memahami tata letak aktual 6 kelompok fasilitas ElBan tanpa risiko keselamatan kerja.
+* **Memvisualisasikan anatomi elektronika & prinsip kerja sistem:** Memungkinkan peserta didik memutar, membongkar (*exploded/cutaway view*), dan menguji simulasi kerja tiap komponen—mulai dari transformasi sinar-X di *scintillator* hingga induksi arus Eddy pada WTMD.
+* **Menghubungkan teori terstruktur (2D) dengan konteks spasial (3D):** Menyediakan *Mode Direktori Teknis* 2D untuk pencarian komponen cepat yang terhubung langsung ke lokasi peralatan di bandara 3D melalui fitur **`Lihat di lokasi`**.
+* **Mengukur ketercapaian belajar secara mandiri:** Mengganti alur *checkout* belanja menjadi alur evaluasi 3 langkah (rekap logbook, kuis skenario/identifikasi komponen, dan ringkasan skor kompetensi).
+
+### 1.3 Target Pengguna (User Personas)
+
+1. **Taruna / Mahasiswa Teknik Penerbangan & ElBan:** Membutuhkan media visual interaktif untuk memahami letak fisik, fungsi komponen internal, dan alur sinyal peralatan bandara sebelum praktik lapangan (*On-the-Job Training*).
+2. **Dosen / Instruktur Praktikum:** Menggunakan aplikasi di layar proyektor kelas sebagai alat bantu demonstrasi interaktif (berpindah antar zona, membedah komponen internal X-Ray/PAS/PIDS secara langsung).
+3. **Teknisi Junior / Peserta Magang Bandara:** Menggunakan mode direktori 2D dan simulasi blok fungsional sebagai referensi cepat (*quick refresher*) saat melakukan inspeksi preventif.
+
+---
+
+## 2. Arsitektur Informasi & Struktur Navigasi
+
+### 2.1 Navigasi Global (Persistent Top Header)
+
+Selalu tampil di bagian atas layar pada mode 3D maupun mode direktori 2D:
+
+* **Logo & Judul (Kiri):** Identitas visual `Walk-In ElBan · Airport Tech Lab`.
+* **Menu Aksi (Kanan):**
+* **Direktori:** Beralih dari ruang bandara 3D ke tampilan grid 2D (*Mode Direktori Peralatan & Komponen*).
+* **Zona:** Dropdown teleportasi kamera ke 9 titik operasional utama di bandara 3D.
+* **Pemilih Bahasa (`EN` / `ID`):** Mengganti bahasa antarmuka (istilah teknis baku seperti *Monoblock*, *Photocell*, *MCFA*, *PABX* tetap dipertahankan).
+* **Logbook Pill (Kapsul Gelap/Navy):** Menggantikan *Cart Pill*. Menampilkan ikon papan klip, progres komponen yang dipelajari, dan poin XP (contoh: `12/25 · 600 XP`). Mengklik tombol ini mengarahkan kamera ke meja evaluasi di zona **`Ruang TOC`** dan membuka modal *Logbook Praktikum*.
+
+
+
+### 2.2 Peta Zona Ruang 3D Bandara (Virtual Airport Layout)
+
+Dropdown **Zona** memetakan 9 area fungsional yang merepresentasikan ekosistem operasional ElBan secara nyata:
+
+| No | Nama Zona | Peralatan & Konten Utama yang Ditempatkan |
+| --- | --- | --- |
+| 1 | **Lobby Keberangkatan (Intro)** | Titik awal masuk terminal; menampilkan papan ikhtisar 6 sistem ElBan & *Videotron Terminal*. |
+| 2 | **Security Checkpoint (SCP)** | **Mesin Pemindai X-Ray** (unit lengkap + stasiun operator) dan **Detektor Logam (WTMD & HHMD)**. |
+| 3 | **Perimeter & Airside Fence** | **Sistem Pengawasan Perimeter (PIDS)**: sensor Radar Scanning, pagar kawat dengan sensor getaran, dan kamera **PTZ/Fixed** *outdoor*. |
+| 4 | **Area Terbatas & Keamanan Gedung** | **Access Control** (Fingerprint & RFID Card Reader, Magnetic/Solenoid Lock, Flap Barrier) dan **Fire Alarm System** (MCFA, Smoke/Heat Detector, Manual Call Point, Sirine/Strobe). |
+| 5 | **Concourse & Boarding Gate** | **FIDS** (monitor industri LCD/LED), **Master Clock Unit** (tampilan jam sinkron), serta jaringan **Ceiling/Horn Speaker** PAS. |
+| 6 | **Baggage Claim Hall** | **BIDS** (Baggage Information Display System) di atas *conveyor belt* bagasi dan kamera **Fisheye** pengawas keramaian. |
+| 7 | **Ruang Server & Rack ElBan** | **NVR / Industrial Server**, Storage HDD, transmisi **Optical Fiber & Media Converter**, **Access Control Server**, **Rack PAS/AAS** (Power Amplifier, Mixer Digital, AAS), dan **PABX / IGCS Base Station**. |
+| 8 | **Pos Komunikasi & Kendaraan Darurat** | **Radio Transceiver**: unit portabel **Handy Talky (HT)** di meja petugas, **Radio Mobile/RIG** terpasang pada unit simulasi *crash car* / ambulans, mikrofon stasiun pengumuman, dan interkom. |
+| 9 | **Ruang TOC (Meja Evaluasi)** | Pusat kendali (*Terminal Operation Center*) dengan multi-monitor pengawas; berfungsi sebagai stasiun akhir untuk rekap **Logbook Praktikum** dan **Uji Kompetensi**. |
+
+---
+
+## 3. Spesifikasi Fitur & Functional Requirements
+
+### 3.1 Modul 1: 3D Airport Environment & Navigasi Spasial
+
+* **Intro Sinematik (Onboarding Camera Fly-Through):**
+* Saat aplikasi dimuat, kamera meluncur melewati Lobby Keberangkatan $\rightarrow$ SCP (X-Ray & WTMD) $\rightarrow$ Concourse (FIDS/PAS) $\rightarrow$ Ruang Server ElBan.
+* Tersedia tombol **`Lewati intro`** di bagian bawah tengah.
+
+
+* **Kontrol Navigasi First-Person:**
+* *HUD hint* di bagian bawah: *"Geser untuk menoleh · W A S D atau scroll untuk jalan · Klik lantai untuk pindah"*.
+* Mendukung *drag* untuk melihat sekeliling, `W A S D` / *scroll* untuk berjalan dengan deteksi tabrakan (*collision*), serta *point-and-click teleport* pada lantai terminal.
+
+
+* **Teleportasi Cepat via Dropdown `Zona`:**
+* Memindahkan kamera secara mulus (< 1,5 detik) ke sudut pandang optimal di depan salah satu dari 9 zona.
+
+
+* **Notifikasi Konteks Zona (Contextual Toast):**
+* Saat mendekati instalasi tertentu, muncul *floating pill* (contoh: *"Kamu di area SCP · Mesin X-Ray. Klik unit untuk membedah komponen."*, *"Kamu di Ruang Server · Rak PAS & NVR."*).
+
+
+
+### 3.2 Modul 2: Interaksi Peralatan, Hover Telemetry & Filter Subsistem 3D
+
+* **Hover Technical Tooltip:**
+* Mengarahkan kursor ke peralatan atau komponen di ruang 3D menampilkan kartu melayang berisi: **Kategori Sistem**, **Nama Komponen**, **Peran Subsistem** (mis. *Input/Sensor*, *Pemroses*, *Aktuator*, *Catu Daya*), dan status belajar (*Belum dipelajari* / *Sudah di Logbook*).
+
+
+* **Filter Kontekstual di Atas Peralatan (Floating Filter Bar):**
+* Ketika kamera memfokuskan satu peralatan kompleks (mis. Mesin X-Ray atau Ruang Server), muncul tombol filter lapisan teknis di atas objek:
+* `Semua Komponen`, `Sensor & Input`, `Pemroses & Kontrol`, `Mekanik & Aktuator`, `Transmisi & Audio/Visual`, `Proteksi & Catu Daya`.
+
+
+* Memilih salah satu filter akan menyorot (*highlight/glow*) komponen yang relevan dan meredupkan bagian lain (*ghost/wireframe mode*) agar siswa melihat posisi internalnya secara presisi.
+
+
+
+### 3.3 Modul 3: 3D Equipment Inspector (Exploded View) & Simulasi Prinsip Kerja
+
+Menggantikan panel *Product Inspector + Coba di Kulit*. Ketika unit peralatan atau komponen diklik, kamera memfokuskan objek di tengah layar dan membuka **Panel Inspeksi Teknis** di sisi kanan:
+
+* **Viewer 3D Interaktif dengan Mode Bedah:**
+* Putar 360° dan *zoom* (*"Geser untuk memutar · Scroll untuk perbesar"*).
+* Toggle tampilan: **`Normal`** | **`Transparan (X-Ray Casing)`** | **`Exploded View`** (memisahkan casing, modul elektronika, kabel, dan sensor dengan garis penunjuk/anotasi).
+
+
+* **Informasi Teknis Komponen:**
+* Nama Sistem Induk, Nama Komponen, Kode Referensi Modul, dan Tombol Tutup (`X`).
+* **Fungsi Utama & Prinsip Kerja:** Penjelasan ringkas, akurat, dan terstruktur mengenai cara kerja elektronika komponen tersebut.
+* **Spesifikasi & Parameter Kunci:** Tegangan/daya, jenis sinyal (analog/digital/RF/optik), dan keterkaitan dengan komponen sebelum/sesudahnya (*Signal Flow Chain*: `Input -> Proses -> Output`).
+
+
+* **Blok Interaktif `SIMULASI CARA KERJA` (Menggantikan *Coba di Kulit*):**
+Menampilkan mini-simulasi visual yang relevan dengan karakteristik masing-masing dari 6 sistem:
+1. **X-Ray Inspection:** Tombol uji objek melintasi *Light Barrier* $\rightarrow$ memicu *X-Ray Generator (100–180 kV)* $\rightarrow$ *Dual Energy Detector* menampilkan simulasi pewarnaan layar operator: **`Organik (Oranye)`**, **`Campuran (Hijau)`**, **`Anorganik/Logam (Biru)`**, serta uji saklar **`Emergency Stop` / `Interlock**`.
+2. **Detektor Logam (WTMD & HHMD):** Slider ukuran logam & posisi ketinggian objek yang melintasi *Transmitter/Receiver Coil* $\rightarrow$ visualisasi gangguan fluks magnetik/arus Eddy $\rightarrow$ memicu **`LED Zone Indicator`** pada gawang WTMD dan **`Audible Alarm`**.
+3. **CCTV & PIDS:** Toggle sudut pandang kamera (**`Fixed`** / **`PTZ`** / **`Fisheye`**) dan tombol **`Simulasi Intrusi Pagar`** yang memicu *Radar Scanning* / sensor getaran kawat pagar serta meneruskan sinyal alarm via *Optical Fiber* ke *NVR*.
+4. **Access Control & Fire Alarm:** Uji tempel **`Kartu RFID / Sidik Jari`** (*Granted* $\rightarrow$ melepas *Magnetic Lock* / membuka *Flap Barrier*; *Denied* $\rightarrow$ tetap terkunci) serta tombol uji **`Simulasi Asap/Panas` / `Manual Call Point**` yang memicu panel **MCFA** & sirine/strobe.
+5. **FIDS, BIDS, PAS & AAS:** Uji perubahan jadwal penerbangan pada *Media Player FIDS* yang tersinkronisasi dengan **`Master Clock Unit`**, serta tombol **`Putar Pesan AAS`** untuk melihat alur sinyal dari *AAS* $\rightarrow$ *Mixer Digital* $\rightarrow$ *Power Amplifier* $\rightarrow$ *Ceiling/Horn Speakers*.
+6. **Komunikasi Darat (Radio & Telekomunikasi):** Tombol **`Push-to-Talk (PTT)`** pada *Handy Talky* / *Radio RIG* untuk memvisualisasikan jalur modulasi gelombang UHF/VHF melewati *Base Station Transceiver* & *IGCS/PABX* menuju unit penerima.
+
+
+* **Aksi Pembelajaran:**
+* **`Simpan ke Logbook (+25 XP)`** (Primary CTA): Menandai komponen sebagai sudah dipelajari, menambah XP, dan menyimpan ringkasannya ke *Logbook Praktikum*.
+* **`Kembali ke area`** (Secondary action): Menutup panel inspeksi dan mengembalikan kamera ke tampilan ruangan.
+
+
+
+### 3.4 Modul 4: Digital ElBan Logbook Overlay (Menggantikan Keranjang Pink 3D)
+
+* **Visual Logbook 3D / HUD Tracker (Pojok Kanan Bawah):**
+* Menampilkan ikon/model **Tablet Inspeksi ElBan** dengan bilah progres visual 6 cincin/segmen warna (mewakili 6 kategori fasilitas ElBan).
+* Setiap kali peserta didik mengklik **`Simpan ke Logbook`**, muncul animasi chip/modul masuk ke tablet inspeksi dan segmen kategori terkait terisi secara *real-time*.
+
+
+* **Header Logbook Pill:**
+* Memperbarui rasio komponen dipelajari (mis. `14/25`) dan total poin XP secara instan, baik dari eksplorasi 3D maupun dari *Mode Direktori 2D*.
+
+
+
+### 3.5 Modul 5: Mode Direktori Peralatan 2D & Spatial Deep-Link
+
+Diakses melalui tombol **`Direktori`** di header, menampilkan seluruh 6 sistem dan 25+ komponen dalam format grid kartu teknis responsif:
+
+* **Header Direktori:** Judul `Mode Direktori Teknis ElBan`, ringkasan progres (`25 komponen · 6 sistem utama`), dan tombol **`Kembali ke bandara 3D`**.
+* **Bar Pencarian & Filter:**
+* Input pencarian teks bebas: `"Cari komponen, sistem, atau prinsip kerja (mis. Scintillator, VFD, MCFA)"`.
+* Tab kategori cepat: `Semua`, `X-Ray`, `WTMD/HHMD`, `CCTV/PIDS`, `Access & Fire`, `FIDS/PAS`, `Radio/IGCS`.
+* Dropdown filter peran subsistem: `Fungsi: Semua` (*Sensor*, *Pemroses*, *Aktuator/Mekanik*, *Transmisi*, *Catu Daya & Proteksi*).
+* Dropdown pengurutan: `Urutan Kurikulum`, `Belum Dipelajari`, `Sudah Dipelajari`.
+
+
+* **Kartu Komponen (Component Card):**
+* Badge status: `Selesai` (hijau), `Kritis/Tegangan Tinggi` (oranye/merah), atau `Wajib Praktikum`.
+* Thumbnail 3D komponen, nama sistem induk, nama komponen, tag lokasi zona (mis. *SCP*, *Ruang Server*), ringkasan fungsi 1 baris, dan indikator subsistem.
+* **Tombol `Pelajari / Catat`:** Membuka ringkasan teknis cepat & langsung menyimpan ke Logbook.
+* **Tombol `Lihat di lokasi` (Spatial Deep-Link):** Menutup *Mode Direktori*, kembali ke bandara 3D, dan langsung menyorot peralatan terkait di ruang 3D.
+
+
+
+### 3.6 Modul 6: Alur Evaluasi & Uji Kompetensi di Ruang TOC (3 Langkah)
+
+Menggantikan alur *Kasir & Checkout*. Dipicu saat pengguna mengklik *Logbook Pill* atau berpindah ke zona **`Ruang TOC`**. Kamera berpindah menghadap meja operator TOC dan membuka modal 3 tahap:
+
+1. **Tahap 1 — Rekap Logbook Praktikum (`TOC / Ringkasan Observasi`):**
+* Menampilkan jumlah komponen yang telah dieksplorasi per sistem (contoh: `18 dari 25 komponen`, persentase ketuntasan tiap 6 kategori).
+* Daftar komponen yang sudah dicatat lengkap dengan nama sistem, fungsi ringkas, dan XP yang diperoleh.
+* Menampilkan daftar komponen yang *belum* dikunjungi dengan tautan cepat jika pengguna ingin melengkapi dulu sebelum ujian.
+* Tombol aksi: **`Lanjut ke Uji Pemahaman`** dan **`Tutup`**.
+
+
+2. **Tahap 2 — Uji Kompetensi & Skenario Troubleshooting (`TOC / Evaluasi Singkat`):**
+* Menyajikan **5 soal interaktif acak** (pilihan ganda / pencocokan komponen-gejala) berdasarkan komponen yang ada di kurikulum.
+* Contoh skenario: *"Layar monitor X-Ray tidak mendeteksi keberadaan koper saat masuk lorong sehingga sinar-X tidak menembak. Komponen mana yang pertama kali harus diperiksa?"* (Jawaban: `Photocells / Light Barrier`).
+* Pengguna dapat memilih **Mode Evaluasi**: `Latihan Mandiri (dengan pembahasan)` atau `Ujian Praktikum (berbatas waktu)`.
+* Tombol: **`Kembali`** dan primary CTA **`Kirim Jawaban & Hitung Nilai`**.
+
+
+3. **Tahap 3 — Hasil Evaluasi & Bukti Praktikum (`TOC / Laporan Kompetensi`):**
+* Menampilkan skor akhir (skala 0–100), predikat (*Sangat Kompeten / Kompeten / Perlu Pendalaman*), rincian jawaban benar/salah disertai penjelasan singkat, serta total XP akhir.
+* Kartu ringkasan: `Kode Sesi Praktikum` (format acak `ELBAN-XXXXXX`), `Komponen Dikuasai`, `Skor Evaluasi`, dan tombol **`Unduh Ringkasan (PDF/Screenshot)`**.
+* Tombol **`Ulangi Eksplorasi`**: Menutup modal dan mengembalikan pengguna ke ruang 3D (dengan opsi mereset progres atau melanjutkan komponen tersisa).
+
+
+
+---
+
+## 4. Matriks Cakupan Materi & Komponen (Curriculum Matrix)
+
+Seluruh peralatan dan komponen elektronika yang wajib terdata sebagai objek interaktif di dalam aplikasi:
+
+| No | Sistem Utama ElBan | Zona 3D | Daftar Komponen Elektronika & Cakupan Materi |
+| --- | --- | --- | --- |
+| **1** | **Mesin Pemindai X-Ray** (*X-Ray Inspection Machine*) | SCP | • **X-Ray Generator (Monoblock):** Coolidge Tube (katoda & anoda), trafo tegangan tinggi 100–180 kV, *insulation oil* (isolator & pendingin).<br>
+
+<br>• **Detector Array (Sensor "L" / "U"):** Kristal *scintillator* (sinar-X $\rightarrow$ cahaya tampak), *photodiode* (cahaya $\rightarrow$ sinyal elektrik digital), Dual Energy 2 lapisan (diskriminasi organik/anorganik).<br>
+
+<br>• **DAS & Frame Grabber Card:** Pengubah analog-ke-digital (ADC) kecepatan tinggi ke unit pemroses gambar.<br>
+
+<br>• **Photocells / Light Barrier:** Sensor IR *transmitter-receiver* di pintu masuk/keluar *tunnel* pemicu penembakan sinar-X.<br>
+
+<br>• **Processing Unit (Industrial PC):** Pengendali logika mesin & algoritma pewarnaan visual (oranye, hijau, biru).<br>
+
+<br>• **Sistem Konveyor Mekanik-Elektronik:** Drum Motor reversibel, VFD/Inverter (stabilisasi kecepatan), *driving chain*, *roller*.<br>
+
+<br>• **Sistem Keamanan & Proteksi Kelistrikan:** Emergency Stop, Interlock Switch, Stack Light / X-Ray On, PDB / Power Sequencer, Foot Switch, Lead Curtains, UPS & Voltage Stabilizer. |
+| **2** | **Detektor Logam** (*WTMD & HHMD*) | SCP | • **Transmitter Coil:** Kumparan tembaga pembangkit medan magnet bolak-balik (induksi elektromagnetik & arus Eddy).<br>
+
+<br>• **Receiver Coil:** Kumparan sensor pendeteksi perubahan fluks magnetik saat logam melintas.<br>
+
+<br>• **Control Unit (Microprocessor Board):** Pemroses sinyal, pengatur sensitivitas, dan pembeda ukuran gangguan logam.<br>
+
+<br>• **Komponen Indikator & Alarm:** Sirine/buzzer (*Audible Alarm*) dan deretan LED penunjuk zona posisi logam (*Visual Alarm / Zone Indicators*).<br>
+
+<br>• **Photocell & Reflector:** Sensor IR penghitung lalu lintas penumpang dan sinkronisasi deteksi pada WTMD.<br>
+
+<br>• **Sumber Daya:** *Rechargeable battery* (HHMD) dan catu daya teregulasi + stabilizer/UPS (WTMD). |
+| **3** | **Sistem Pengawasan Kamera** (*CCTV & PIDS*) | Perimeter & Ruang Server | • **Kamera Pengawas:** Unit *Fixed*, *PTZ (Pan-Tilt-Zoom)*, dan *Fisheye* lengkap dengan sensor citra elektronik, motor lensa, dan *housing* protektif.<br>
+
+<br>• **Unit Perekam & Penyimpanan:** NVR (*Network Video Recorder*) / Industrial Server dan Storage HDD berkapasitas besar.<br>
+
+<br>• **Infrastruktur Transmisi:** Kabel *Optical Fiber*, modul *transceiver* optik (*media converter*), dan kabel LAN.<br>
+
+<br>• **Komponen PIDS:** Sensor *Radar Scanning* (pemancar/penerima gelombang garis lurus), sensor getaran kawat pagar, dan modul pengirim sinyal alarm intrusi ke pusat kontrol. |
+| **4** | **Kontrol Akses & Keamanan Gedung** (*Access Control & Safety*) | Area Terbatas & Ruang Server | • **Fingerprint & Card Reader:** Pemindai biometrik optik/kapasitif dan pembaca kartu RFID.<br>
+
+<br>• **Pintu Akses Kontrol:** Pengunci elektronik (*Magnetic Lock / Locking Door / Solenoid Lock*) dan panel pengatur *Flap Barrier*.<br>
+
+<br>• **Server Kontrol Akses & Display:** Komputer pengendali hak akses dan monitor antarmuka.<br>
+
+<br>• **Fire Alarm System:** Panel kendali utama **MCFA** (*Master Control Fire Alarm*), sensor *Smoke & Heat Detector*, *Manual Call Point*, serta sirine/strobe. |
+| **5** | **Informasi & Audio Visual** (*FIDS, BIDS, PAS, AAS*) | Concourse, Baggage Claim & Ruang Server | • **Layar Tampilan Visual (FIDS & BIDS):** Monitor industri LCD/LED, panel *Videotron Terminal*, dan mini PC / *Media Player* FIDS.<br>
+
+<br>• **Master Clock Unit:** Modul pewaktu induk digital presisi tinggi untuk sinkronisasi seluruh layar FIDS dan komputer operasional.<br>
+
+<br>• **Perangkat Suara (PAS & AAS):** Generator suara/pemutar pesan otomatis (AAS), *Power Amplifier*, *mixer* audio digital, mikrofon stasiun pengumuman, serta *ceiling/horn speakers*. |
+| **6** | **Komunikasi Darat** (*Radio & Telekomunikasi*) | Pos Komunikasi & Ruang Server | • **Radio Transceiver (HT & Radio Mobile/RIG):** Unit UHF/VHF portabel dan terpasang pada *crash car* / ambulans (osilator, filter RF, mikrofon, antena pemancar, baterai).<br>
+
+<br>• **IGCS & PABX:** *Base Station Transceiver*, pengontrol radio *trunking*, modul *switching* telepon internal (PABX), dan perangkat interkom. |
+
+---
+
+## 5. Prioritas Fitur (MoSCoW) & Acceptance Criteria
+
+| Fitur | Prioritas | Acceptance Criteria Utama |
+| --- | --- | --- |
+| **3D Virtual Airport & Navigasi 9 Zona** | Must Have | Pengguna dapat melewati intro, berjalan bebas (drag/WASD/scroll/klik lantai) dengan batas *collision*, dan berpindah ke 9 zona operasional melalui dropdown `Zona` dengan transisi halus (< 1,5 detik). |
+| **3D Equipment Inspector & Exploded View** | Must Have | Mengklik salah satu dari 6 peralatan utama membuka panel detail dengan mode *Normal/Transparan/Exploded*, memungkinkan pemilihan tiap sub-komponen (total 25+ komponen) beserta deskripsi elektronika lengkapnya. |
+| **Simulasi Prinsip Kerja Interaktif** | Must Have | Setiap dari 6 kategori sistem memiliki minimal 1 aksi simulasi interaktif di panel inspeksi (mis. tes warna Dual Energy X-Ray, uji zona LED WTMD, trigger alarm PIDS/MCFA, tes audio PAS, PTT Radio). |
+| **Logbook Praktikum & Progress Sync** | Must Have | Menandai komponen dari 3D maupun Direktori 2D langsung memperbarui jumlah progres (`X/25`), total XP di header, dan visualisasi cincin progres di pojok kanan bawah. |
+| **Mode Direktori 2D & `Lihat di lokasi**` | Must Have | Pencarian teks, filter 6 sistem, dan filter peran subsistem menyaring seluruh komponen secara akurat. Klik `Lihat di lokasi` menutup direktori dan memfokuskan kamera 3D tepat pada unit peralatan terkait. |
+| **Evaluasi 3 Langkah di Ruang TOC** | Must Have | Modal TOC menampilkan rekap komponen dipelajari, menyajikan 5 soal skenario/identifikasi, menghitung skor akurat $\left(\frac{\text{Benar}}{\text{Total Soal}} \times 100\right)$, dan menghasilkan kode sesi `ELBAN-XXXXXX`. |
+| **Filter Lapisan Subsistem 3D** | Should Have | Di depan unit kompleks (X-Ray / Rak Server), *filter pills* lapisan teknis menyorot komponen yang sesuai dan meredupkan bagian lain. |
+| **Multi-Bahasa (ID / EN) & Persistensi Lokal** | Should Have | Pergantian bahasa mengubah label UI tanpa mereset progres; status Logbook dan XP tersimpan di `localStorage` sehingga tidak hilang saat browser di-refresh. |
+
+---
+
+## 6. Alur Pengguna Utama (User Flows)
+
+### Alur 1: Eksplorasi Virtual & Praktikum Mandiri hingga Evaluasi TOC
+
+1. Pengguna membuka aplikasi $\rightarrow$ *intro fly-through* terminal berjalan $\rightarrow$ pengguna klik **`Lewati intro`**.
+2. Pengguna memilih zona melalui dropdown **`Zona`** (mis. **`Security Checkpoint (SCP)`**) atau berjalan langsung menuju Mesin X-Ray.
+3. Pengguna mengarahkan kursor ke Mesin X-Ray (*hover telemetry* muncul) lalu mengklik unit tersebut.
+4. Panel **3D Equipment Inspector** terbuka $\rightarrow$ pengguna mengaktifkan mode **`Exploded View`** untuk melihat posisi *X-Ray Generator (Monoblock)*, *Detector Array "L"*, *DAS*, *Photocells*, dan *VFD Konveyor*.
+5. Pengguna mengklik **`Detector Array`**, membaca cara kerja *scintillator* & *photodiode*, lalu mencoba tombol simulasi **`Organik / Campuran / Anorganik`** $\rightarrow$ klik **`Simpan ke Logbook (+25 XP)`**.
+6. Tablet progres di kanan bawah dan *Logbook Pill* di header terbarui.
+7. Setelah mengeksplorasi beberapa sistem, pengguna klik *Logbook Pill* $\rightarrow$ kamera berpindah ke **`Ruang TOC`** $\rightarrow$ meninjau rekap observasi $\rightarrow$ klik **`Lanjut ke Uji Pemahaman`** $\rightarrow$ menjawab 5 skenario soal $\rightarrow$ menerima **Laporan Kompetensi** berkode `ELBAN-XXXXXX`.
+
+### Alur 2: Pencarian Cepat Komponen via Direktori 2D ke Lokasi 3D
+
+1. Pengguna (atau dosen di kelas) mengklik **`Direktori`** di header $\rightarrow$ masuk ke tampilan grid 2D.
+2. Pengguna mengetik `"MCFA"` atau `"Master Clock"` di kotak pencarian, atau memilih tab kategori **`Access & Fire`**.
+3. Dari kartu komponen target, pengguna dapat:
+* Klik **`Pelajari / Catat`** untuk melihat rincian teknis dan mencatatnya langsung ke Logbook.
+* Klik **`Lihat di lokasi`** $\rightarrow$ kembali ke ruang bandara 3D dengan kamera otomatis terfokus tepat pada panel MCFA di dinding *Area Terbatas* atau *Master Clock Unit* di *Concourse*.
+
+
+
+---
+
+## 7. Model Data Utama (Conceptual Data Schema)
+
+```json
+{
+  "EquipmentSystem": {
+    "id": "string (e.g., 'sys-xray', 'sys-wtmd', 'sys-cctv-pids', 'sys-access-fire', 'sys-fids-pas', 'sys-radio-igcs')",
+    "name_id": "string (e.g., 'Mesin Pemindai X-Ray')",
+    "name_en": "string (e.g., 'X-Ray Inspection Machine')",
+    "zoneId": "string (ref -> AirportZone.id)",
+    "workingPrinciple": "string",
+    "model3DUrl": "string (GLB/GLTF dengan named sub-meshes untuk exploded view)",
+    "simulationType": "enum ['xray_dual_energy', 'eddy_current_zone', 'pids_cctv_intrusion', 'access_fire_trigger', 'fids_pas_sync', 'rf_ptt_routing']"
+  },
+  "ElectronicComponent": {
+    "id": "string (e.g., 'comp-xray-monoblock')",
+    "systemId": "string (ref -> EquipmentSystem.id)",
+    "name": "string (e.g., 'X-Ray Generator (Unit Monoblock)')",
+    "subsystemLayer": "enum ['Sensor & Input', 'Pemroses & Kontrol', 'Mekanik & Aktuator', 'Transmisi & Audio/Visual', 'Proteksi & Catu Daya']",
+    "subElements": ["'Coolidge Tube (Katoda & Anoda)'", "'Trafo Tegangan Tinggi 100-180 kV'", "'Insulation Oil'"],
+    "description_id": "string",
+    "technicalSpecs": {
+      "signalType": "string (e.g., 'High Voltage DC / X-Ray Radiation')",
+      "criticalSafetyNote": "string | null"
+    },
+    "signalFlowChain": {
+      "inputFrom": "string (e.g., 'PDB / Power Sequencer & Photocell Trigger')",
+      "outputTo": "string (e.g., 'Detector Array (Sensor L/U)')"
+    },
+    "meshNodeName": "string (nama node di file GLB untuk highlight & exploded offset)",
+    "explodedOffset": { "x": "number", "y": "number", "z": "number" },
+    "xpReward": "number (default: 25)",
+    "badges": ["'Tegangan Tinggi' | 'Wajib Praktikum' | 'Kritis Keselamatan'"]
+  },
+  "AirportZone": {
+    "id": "string",
+    "name_id": "string (e.g., 'Security Checkpoint (SCP)')",
+    "name_en": "string",
+    "cameraPosition": { "x": "number", "y": "number", "z": "number" },
+    "cameraTarget": { "x": "number", "y": "number", "z": "number" },
+    "toastMessage_id": "string"
+  },
+  "LearningProgressState": {
+    "loggedComponentIds": ["string"],
+    "completedSimulations": ["string"],
+    "totalXp": "number",
+    "lastVisitedZoneId": "string"
+  },
+  "AssessmentAttempt": {
+    "sessionCode": "string (format: ELBAN-[A-Z0-9]{6})",
+    "mode": "enum ['practice', 'exam']",
+    "questions": [
+      {
+        "questionId": "string",
+        "relatedComponentId": "string",
+        "selectedOption": "string",
+        "isCorrect": "boolean"
+      }
+    ],
+    "score": "number (0-100)",
+    "completedAt": "ISO timestamp"
+  }
+}
+
+```
+
+---
+
+## 8. Kebutuhan Non-Fungsional (Non-Functional Requirements)
+
+| Kategori | Spesifikasi Target |
+| --- | --- |
+| **Performa Rendering 3D** | Target **60 FPS** di laptop/PC standar lab dan minimal **30 FPS** di perangkat *mid-range*. Gunakan *Level of Detail (LOD)*, kompresi geometri Draco untuk aset GLB (X-Ray, rak server, kamera), serta *baked lighting* agar interior terminal terlihat realistis namun ringan. |
+| **Kecepatan Muat (Load Time)** | *Initial Interactive Load* < 5 detik; gunakan *lazy-loading* untuk aset detail *exploded view* sehingga model internal baru dimuat penuh saat peralatan diklik. |
+| **Akurasi Teknis & Visual** | Skema pewarnaan Dual Energy X-Ray (oranye = organik, hijau = campuran, biru = anorganik/logam), topologi *optical fiber* ke NVR, dan hierarki daya (UPS/Stabilizer $\rightarrow$ PDB) harus konsisten dengan standar operasional peralatan bandara. |
+| **Aksesibilitas & Fallback** | *Mode Direktori 2D* wajib berfungsi penuh sebagai referensi belajar mandiri bagi perangkat dengan GPU terbatas atau untuk penggunaan cepat di ponsel saat di kelas. |
+| **Persistensi & Privasi Data** | Progres *Logbook* disimpan secara lokal (`localStorage`) pada versi MVP tanpa kewajiban login; tidak mengumpulkan data sensitif mahasiswa kecuali jika nantinya diintegrasikan ke LMS kampus. |
+
+---
+
+## 9. Metrik Keberhasilan (Success Metrics / KPIs)
+
+1. **Kedalaman Eksplorasi Materi:**
+* Rata-rata jumlah komponen unik yang dibedah & disimpan ke Logbook per sesi (target $\ge 12$ dari 25 komponen).
+* Persentase sesi yang mengaktifkan mode **`Exploded View`** dan menjalankan minimal 2 **`Simulasi Cara Kerja`**.
+
+
+2. **Efektivitas Pembelajaran:**
+* Rata-rata skor **Uji Kompetensi TOC** (target $\ge 80/100$ setelah eksplorasi minimal 70% komponen).
+* Peningkatan skor antara percobaan pertama (*pre-exploration*) dan percobaan pasca-eksplorasi (*post-exploration*).
+
+
+3. **Adopsi Fitur Navigasi Lintas-Mode:**
+* Frekuensi penggunaan tombol **`Lihat di lokasi`** dari Direktori 2D ke ruang 3D (indikator efektivitas pembelajaran spasial).
+
+
+4. **Stabilitas Teknis:**
+* *WebGL Crash / Context Lost Rate* < 0,5% pada browser Chrome/Edge versi terbaru di komputer laboratorium maupun laptop pribadi.
+
+
+
+---
+
+## 10. Rekomendasi Pengembangan Fase Berikutnya (Post-MVP Roadmap)
+
+* **Mode Troubleshooting & Simulasi Gangguan (Fault Injection):** Instruktur atau sistem menyuntikkan gangguan nyata—misalnya *Interlock Switch* terbuka, *Photocell* tertutup debu, *Media Converter* putus, atau *Power Amplifier* *clipping*—dan peserta didik harus melacak titik kerusakan secara 3D menggunakan multimeter/tester virtual.
+* **Diagram Blok Interaktif 2D–3D Sync:** Menambahkan tab *Diagram Blok Sinyal* di samping panel inspeksi yang menyala secara berurutan bersamaan dengan aliran animasi partikel/sinyal pada kabel di model 3D.
+* **Integrasi LMS & Rekap Nilai Kelas (Google Sheets / Apps Script):** Mengirimkan hasil evaluasi berkode `ELBAN-XXXXXX` (nama/NIT, daftar komponen dieksplorasi, skor kuis, dan waktu pengerjaan) secara otomatis ke spreadsheet rekap nilai praktikum instruktur.
+* **Mode Presentasi Instruktur (Guided Classroom Tour):** Mode layar penuh tanpa HUD yang mengganggu dengan *laser pointer* virtual dan tombol pintas *keyboard* (`1–9`) untuk melompat cepat antar sistem saat mengajar di depan kelas.
