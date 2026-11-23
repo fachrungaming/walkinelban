@@ -95,6 +95,24 @@ export function playLogbookConfirm(): void {
   window.setTimeout(() => playTone(880, 0.13, 'triangle', 0.07), 85);
 }
 
+export function playSwitchClick(turnedOn: boolean): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(turnedOn ? 1180 : 780, now);
+  osc.frequency.exponentialRampToValueAtTime(turnedOn ? 460 : 320, now + 0.032);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.09, now + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.042);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.05);
+}
+
 // =========================================================================
 // PUBLIC ADDRESS SYSTEM (PAS / AAS) ZONE-BASED AUDIO SIMULATION ENGINE
 // =========================================================================

@@ -1,5 +1,16 @@
 export type Language = 'id' | 'en';
 
+export type TimeOfDayMode = 'day' | 'night';
+
+export type LightCircuitId =
+  | 'lobby_concourse'
+  | 'scp_baggage'
+  | 'restricted_server'
+  | 'toc'
+  | 'exterior';
+
+export type LightCircuitState = Record<LightCircuitId, boolean>;
+
 export type SubsystemLayer =
   | 'Sensor & Input'
   | 'Pemroses & Kontrol'
@@ -153,6 +164,7 @@ export interface HoverTelemetryData {
   componentId?: string;
   zoneId?: ZoneId;
   isTocConsole?: boolean;
+  lightSwitchCircuitId?: LightCircuitId;
   screenX: number;
   screenY: number;
 }

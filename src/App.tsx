@@ -11,7 +11,7 @@ import { EquipmentInspectorModal } from './components/EquipmentInspectorModal';
 import { LogbookTrackerHUD } from './components/LogbookTrackerHUD';
 import { PasControllerPanel } from './components/PasControllerPanel';
 import { TOCEvaluationModal } from './components/TOCEvaluationModal';
-import { TopHeader } from './components/TopHeader';
+import { LIGHT_CIRCUIT_META, TopHeader } from './components/TopHeader';
 import {
   COMPONENT_MAP,
   SUBSYSTEM_LAYER_LABELS,
@@ -26,11 +26,19 @@ import {
   HoverTelemetryData,
   Language,
   LearningProgressState,
+  LightCircuitId,
+  LightCircuitState,
   SubsystemLayer,
   SystemId,
+  TimeOfDayMode,
   ZoneId,
 } from './types/elban';
-import { PasBroadcastMode, playLogbookConfirm, stopPasBroadcast } from './utils/audioSynth';
+import {
+  PasBroadcastMode,
+  playLogbookConfirm,
+  playSwitchClick,
+  stopPasBroadcast,
+} from './utils/audioSynth';
 
 const STORAGE_KEY = 'walkin_elban_progress_v1';
 
@@ -70,6 +78,14 @@ export default function App() {
   const [zoneToast, setZoneToast] = useState<string | null>(null);
   const [recentLogFlash, setRecentLogFlash] = useState<string | null>(null);
   const [webglFallback, setWebglFallback] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDayMode>('day');
+  const [lightCircuits, setLightCircuits] = useState<LightCircuitState>({
+    lobby_concourse: true,
+    scp_baggage: true,
+    restricted_server: true,
+    toc: true,
+    exterior: true,
+  });
 
   // Active modals
   const [inspectedTarget, setInspectedTarget] = useState<{
@@ -125,6 +141,13 @@ export default function App() {
           setHoverTelemetry(null);
           setTocModalOpen(true);
         },
+        onToggleLightCircuit: (circuitId) => {
+          setLightCircuits((prev) => {
+            const nextVal = !prev[circuitId];
+            playSwitchClick(nextVal);
+            return { ...prev, [circuitId]: nextVal };
+          });
+        },
         onContextLost: () => {
           setWebglFallback(true);
         },
@@ -145,17 +168,56 @@ export default function App() {
     sceneCtrlRef.current?.setSubsystemLayerFilter(activeLayerFilter);
   }, [activeLayerFilter]);
 
-  // Keyboard shortcut 'H' to toggle bottom dock Zen mode
+  // Sync Day / Night Mode to 3D Scene
+  useEffect(() => {
+    sceneCtrlRef.current?.setTimeOfDay(timeOfDay);
+  }, [timeOfDay]);
+
+  // Sync 5-Circuit Room Light Switches to 3D Scene
+  useEffect(() => {
+    sceneCtrlRef.current?.setLightCircuits(lightCircuits);
+  }, [lightCircuits]);
+
+  const handleToggleTimeOfDay = useCallback(() => {
+    setTimeOfDay((prev) => {
+      const next: TimeOfDayMode = prev === 'day' ? 'night' : 'day';
+      playSwitchClick(next === 'night');
+      return next;
+    });
+  }, []);
+
+  const handleToggleLightCircuit = useCallback((circuitId: LightCircuitId) => {
+    setLightCircuits((prev) => {
+      const nextVal = !prev[circuitId];
+      playSwitchClick(nextVal);
+      return { ...prev, [circuitId]: nextVal };
+    });
+  }, []);
+
+  const handleSetAllLights = useCallback((on: boolean) => {
+    playSwitchClick(on);
+    setLightCircuits({
+      lobby_concourse: on,
+      scp_baggage: on,
+      restricted_server: on,
+      toc: on,
+      exterior: on,
+    });
+  }, []);
+
+  // Keyboard shortcuts: 'H' toggle bottom dock, 'N' toggle Day/Night Mode
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
       if (e.key === 'h' || e.key === 'H') {
         setDockExpanded((v) => !v);
+      } else if (e.key === 'n' || e.key === 'N') {
+        handleToggleTimeOfDay();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [handleToggleTimeOfDay]);
 
   const handleSelectZone = useCallback(
     (zoneId: ZoneId) => {
@@ -275,6 +337,11 @@ export default function App() {
         loggedCount={progress.loggedComponentIds.length}
         totalXp={progress.totalXp}
         onOpenTocLogbook={handleOpenTocLogbook}
+        timeOfDay={timeOfDay}
+        onToggleTimeOfDay={handleToggleTimeOfDay}
+        lightCircuits={lightCircuits}
+        onToggleLightCircuit={handleToggleLightCircuit}
+        onSetAllLights={handleSetAllLights}
       />
 
       {/* Dedicated WebGL 3D Airport Viewport Container */}
@@ -350,7 +417,43 @@ export default function App() {
                 top: Math.min(hoverTelemetry.screenY + 16, window.innerHeight - 140),
               }}
             >
-              {hoverTelemetry.isTocConsole ? (
+              {hoverTelemetry.lightSwitchCircuitId ? (
+                (() => {
+                  const meta = LIGHT_CIRCUIT_META.find((m) => m.id === hoverTelemetry.lightSwitchCircuitId);
+                  const isOn = lightCircuits[hoverTelemetry.lightSwitchCircuitId];
+                  return (
+                    <>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-mono-tech font-semibold text-amber-700">
+                          {lang === 'id' ? 'SAKLAR LAMPU 3D' : '3D LIGHT SWITCH'}
+                        </span>
+                        <span
+                          className={`font-mono-tech font-bold ${
+                            isOn ? 'text-emerald-700' : 'text-slate-500'
+                          }`}
+                        >
+                          {isOn ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                      <div className="text-sm font-bold text-slate-900 mt-0.5">
+                        {meta ? (lang === 'id' ? meta.name_id : meta.name_en) : ''}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                        <MousePointerClick className="w-3.5 h-3.5 text-amber-600" />
+                        <span>
+                          {lang === 'id'
+                            ? isOn
+                              ? 'Klik untuk mematikan lampu ruangan'
+                              : 'Klik untuk menyalakan lampu ruangan'
+                            : isOn
+                              ? 'Click to switch room light OFF'
+                              : 'Click to switch room light ON'}
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()
+              ) : hoverTelemetry.isTocConsole ? (
                 <>
                   <div className="font-mono-tech text-[11px] font-semibold text-sky-700">
                     ZONA 09 · RUANG TOC

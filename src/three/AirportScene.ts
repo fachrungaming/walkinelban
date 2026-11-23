@@ -2,7 +2,15 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EQUIPMENT_SYSTEMS } from '../data/curriculum';
 import { AIRPORT_ZONES, ZONE_MAP } from '../data/zones';
-import { HoverTelemetryData, SubsystemLayer, SystemId, ZoneId } from '../types/elban';
+import {
+  HoverTelemetryData,
+  LightCircuitId,
+  LightCircuitState,
+  SubsystemLayer,
+  SystemId,
+  TimeOfDayMode,
+  ZoneId,
+} from '../types/elban';
 import {
   buildEquipmentBySystem,
   buildTocEvaluationDesk,
@@ -41,6 +49,7 @@ export interface AirportSceneCallbacks {
   onHoverTelemetry: (data: HoverTelemetryData | null) => void;
   onSelectSystem: (systemId: SystemId, componentId?: string) => void;
   onOpenTocModal: () => void;
+  onToggleLightCircuit?: (circuitId: LightCircuitId) => void;
   onContextLost?: () => void;
 }
 
@@ -114,6 +123,27 @@ export class AirportSceneController {
   private pasActiveZones = new Set<ZoneId>();
   private pasBroadcastMode: PasBroadcastMode | 'idle' = 'idle';
   private entranceGate: WalkInEntranceGateHandle | null = null;
+
+  // Day/Night & Room Lighting Switchboard state
+  private hemiLight!: THREE.HemisphereLight;
+  private keyLight!: THREE.DirectionalLight;
+  private fillLight!: THREE.DirectionalLight;
+  private nightSkyGroup: THREE.Group | null = null;
+  private exteriorCoveLedMat: THREE.MeshStandardMaterial | null = null;
+  private timeOfDay: TimeOfDayMode = 'day';
+  private lightCircuits: LightCircuitState = {
+    lobby_concourse: true,
+    scp_baggage: true,
+    restricted_server: true,
+    toc: true,
+    exterior: true,
+  };
+  private circuitLights = new Map<LightCircuitId, THREE.PointLight[]>();
+  private circuitPanelMats = new Map<LightCircuitId, THREE.MeshStandardMaterial[]>();
+  private wallSwitchRockers = new Map<
+    LightCircuitId,
+    Array<{ rocker: THREE.Mesh; ledMat: THREE.MeshStandardMaterial }>
+  >();
 
   // Bound event listeners for clean removal
   private onResizeBound: () => void;
@@ -222,28 +252,78 @@ export class AirportSceneController {
   }
 
   private setupLighting(): void {
-    const hemi = new THREE.HemisphereLight(0xdbeafe, 0x94a3b8, 0.9);
-    this.scene.add(hemi);
+    this.hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x94a3b8, 0.9);
+    this.scene.add(this.hemiLight);
 
-    const key = new THREE.DirectionalLight(0xfff7ed, 1.45);
-    key.position.set(16, 26, 18);
+    this.keyLight = new THREE.DirectionalLight(0xfff7ed, 1.45);
+    this.keyLight.position.set(16, 26, 18);
     if (!this.isSoftwareGl) {
-      key.castShadow = true;
-      key.shadow.mapSize.set(1024, 1024);
-      key.shadow.camera.left = -28;
-      key.shadow.camera.right = 28;
-      key.shadow.camera.top = 26;
-      key.shadow.camera.bottom = -26;
-      key.shadow.camera.near = 2;
-      key.shadow.camera.far = 70;
-      key.shadow.bias = -0.0005;
-      key.shadow.normalBias = 0.02;
+      this.keyLight.castShadow = true;
+      this.keyLight.shadow.mapSize.set(1024, 1024);
+      this.keyLight.shadow.camera.left = -28;
+      this.keyLight.shadow.camera.right = 28;
+      this.keyLight.shadow.camera.top = 26;
+      this.keyLight.shadow.camera.bottom = -26;
+      this.keyLight.shadow.camera.near = 2;
+      this.keyLight.shadow.camera.far = 70;
+      this.keyLight.shadow.bias = -0.0005;
+      this.keyLight.shadow.normalBias = 0.02;
     }
-    this.scene.add(key);
+    this.scene.add(this.keyLight);
 
-    const fill = new THREE.DirectionalLight(0xbfdbfe, 0.55);
-    fill.position.set(-18, 14, -14);
-    this.scene.add(fill);
+    this.fillLight = new THREE.DirectionalLight(0xbfdbfe, 0.55);
+    this.fillLight.position.set(-18, 14, -14);
+    this.scene.add(this.fillLight);
+
+    // Procedural Night Sky Starfield & Moon (toggled visible in Night Mode)
+    const skyGroup = new THREE.Group();
+    const starCount = 480;
+    const starPositions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      // Deterministic pseudo-random distribution across upper sky hemisphere
+      const u = Math.abs((Math.sin(i * 12.9898) * 43758.5453) % 1);
+      const v = Math.abs((Math.sin(i * 78.233) * 19341.1234) % 1);
+      const theta = u * Math.PI * 2;
+      const phi = Math.acos(0.14 + v * 0.86); // strictly above horizon
+      const r = 112;
+      starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      starPositions[i * 3 + 1] = r * Math.cos(phi);
+      starPositions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    const starMat = new THREE.PointsMaterial({
+      color: 0xe2e8f0,
+      size: 0.72,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.9,
+      fog: false,
+    });
+    const stars = new THREE.Points(starGeo, starMat);
+
+    // Soft glowing Moon positioned over the northern Makassar sky behind the Entrance Gate
+    const moonDisc = new THREE.Mesh(
+      new THREE.CircleGeometry(3.4, 32),
+      new THREE.MeshBasicMaterial({ color: 0xfef9c3, fog: false })
+    );
+    moonDisc.position.set(22, 34, -76);
+    const moonHalo = new THREE.Mesh(
+      new THREE.CircleGeometry(6.8, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0x93c5fd,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+        fog: false,
+      })
+    );
+    moonHalo.position.set(22, 34, -76.2);
+
+    skyGroup.add(stars, moonHalo, moonDisc);
+    skyGroup.visible = false;
+    this.nightSkyGroup = skyGroup;
+    this.scene.add(skyGroup);
   }
 
   private buildAirportEnvironment(): void {
@@ -386,22 +466,70 @@ export class AirportSceneController {
         this.scene.add(col);
       });
     }
-    [-6.5, 3.5, 12.0].forEach((lz) => {
-      const lightPanel = new THREE.Mesh(
-        new THREE.BoxGeometry(14, 0.03, 1.35),
-        new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe0f2fe, emissiveIntensity: 0.65 })
-      );
-      lightPanel.position.set(0, 7.148, lz);
-      this.scene.add(lightPanel);
-    });
+    // Controllable Multi-Zone Recessed Plafon LED Luminaires & Real-Time Overhead Room Lights
+    const addRoomFixture = (
+      circuitId: LightCircuitId,
+      x: number,
+      z: number,
+      w: number,
+      d: number,
+      emissiveHex: number,
+      withPointLight: boolean,
+      lightColor: number,
+      lightDist: number
+    ) => {
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: emissiveHex,
+        emissiveIntensity: 0.72,
+        roughness: 0.25,
+      });
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(w, 0.032, d), mat);
+      panel.position.set(x, 7.148, z);
+      this.scene.add(panel);
+      const mats = this.circuitPanelMats.get(circuitId) ?? [];
+      mats.push(mat);
+      this.circuitPanelMats.set(circuitId, mats);
 
-    // 3b. Grand Walk-In ElBan Entrance Gate (Bandara Internasional Sultan Hasanuddin UPG) integrated into front exterior facade
+      if (withPointLight) {
+        const pt = new THREE.PointLight(lightColor, 0, lightDist, 1.45);
+        pt.position.set(x, 6.45, z);
+        this.scene.add(pt);
+        const lights = this.circuitLights.get(circuitId) ?? [];
+        lights.push(pt);
+        this.circuitLights.set(circuitId, lights);
+      }
+    };
+
+    // Circuit 1: Lobby & Central Concourse
+    addRoomFixture('lobby_concourse', 0, 12.0, 14, 1.35, 0xe0f2fe, true, 0xf0f9ff, 26);
+    addRoomFixture('lobby_concourse', 0, 3.5, 14, 1.35, 0xe0f2fe, false, 0xf0f9ff, 26);
+    addRoomFixture('lobby_concourse', 0, -6.5, 14, 1.35, 0xe0f2fe, true, 0xf0f9ff, 26);
+
+    // Circuit 2: SCP & Baggage Claim (West Wing)
+    addRoomFixture('scp_baggage', -13.2, 5.2, 7.2, 1.2, 0xf8fafc, true, 0xf8fafc, 22);
+    addRoomFixture('scp_baggage', -13.2, -6.5, 7.2, 1.2, 0xf8fafc, true, 0xf8fafc, 22);
+
+    // Circuit 3: Area Terbatas & Server Room (East Wing)
+    addRoomFixture('restricted_server', 13.2, 5.2, 7.2, 1.2, 0xe0f2fe, true, 0xe0f2fe, 22);
+    addRoomFixture('restricted_server', 14.2, -6.8, 6.8, 1.2, 0xe0f2fe, true, 0xe0f2fe, 22);
+
+    // Circuit 4: Ruang TOC (South-East Evaluation Room)
+    addRoomFixture('toc', 14.5, 13.8, 5.8, 1.15, 0xfef3c7, true, 0xfef3c7, 18);
+
+    // 3b. Grand Walk-In ElBan Entrance Gate (Bandara Internasional Sultan Hasanuddin Makassar) integrated into front exterior facade
     this.entranceGate = buildWalkInEntranceGate(maxAniso);
     this.entranceGate.group.position.set(0, 0, 17.6);
     this.scene.add(this.entranceGate.group);
 
     // 3c. Exterior Front Building Facade (Travertine + Carved Toraja Wood Pilasters + Golden Cove LED + Dark Louver Fascia) & Sunlit Outdoor Arrival Plaza
     this.buildExteriorFacadeAndPlaza(maxAniso);
+
+    // 3d. Physical Clickable 3D Wall Light Switch Panels inside the Terminal Hall
+    this.buildWallLightSwitchPanels(maxAniso);
+
+    // Apply initial Day lighting & active room circuit intensities
+    this.applyLightingState();
 
     // 4. Lobby Videotron & Overview Board (Zone 1)
     const videoGroup = new THREE.Group();
@@ -544,6 +672,17 @@ export class AirportSceneController {
       emissive: 0xf59e0b,
       emissiveIntensity: 1.55,
       roughness: 0.2,
+    });
+    this.exteriorCoveLedMat = matWarmCoveLed;
+
+    // Warm Exterior Arrival Plaza Architectural Lighting (controlled by 'exterior' circuit, dramatic at Night!)
+    [-8.5, 8.5].forEach((ex) => {
+      const extLight = new THREE.PointLight(0xfde68a, 0, 26, 1.45);
+      extLight.position.set(ex, 5.1, 21.8);
+      this.scene.add(extLight);
+      const list = this.circuitLights.get('exterior') ?? [];
+      list.push(extLight);
+      this.circuitLights.set('exterior', list);
     });
     const matTransomGlass = new THREE.MeshPhysicalMaterial({
       color: 0xe0f2fe,
@@ -1196,7 +1335,203 @@ export class AirportSceneController {
     this.interactiveRoots.push(pasNetGroup);
   }
 
+  private buildWallLightSwitchPanels(maxAniso: number): void {
+    const circuits: Array<{ id: LightCircuitId; shortLabel: string }> = [
+      { id: 'lobby_concourse', shortLabel: 'LOBBY' },
+      { id: 'scp_baggage', shortLabel: 'SCP' },
+      { id: 'restricted_server', shortLabel: 'SERVER' },
+      { id: 'toc', shortLabel: 'TOC' },
+      { id: 'exterior', shortLabel: 'LUAR' },
+    ];
+
+    // Procedural brushed faceplate header graphic
+    const labelCanvas = document.createElement('canvas');
+    labelCanvas.width = 512;
+    labelCanvas.height = 128;
+    const ctx = labelCanvas.getContext('2d')!;
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, 512, 128);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(0, 0, 512, 10);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '800 32px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('SAKLAR LAMPU RUANGAN', 256, 62);
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '700 20px "IBM Plex Mono", monospace';
+    ctx.fillText('ELBAN LIGHTING CONTROL · 220V AC', 256, 102);
+    const labelTex = new THREE.CanvasTexture(labelCanvas);
+    labelTex.colorSpace = THREE.SRGBColorSpace;
+    labelTex.anisotropy = Math.min(8, maxAniso);
+
+    const matPlate = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.35, metalness: 0.32 });
+    const matBezel = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.42, metalness: 0.55 });
+    const matRocker = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.28, metalness: 0.1 });
+    const matHeader = new THREE.MeshStandardMaterial({ map: labelTex, roughness: 0.35, metalness: 0.15 });
+
+    const createPanelInstance = (pos: [number, number, number], rotY: number) => {
+      const panelGroup = new THREE.Group();
+      panelGroup.position.set(pos[0], pos[1], pos[2]);
+      panelGroup.rotation.y = rotY;
+
+      const backBox = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.56, 0.055), matBezel);
+      const facePlate = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.5, 0.025), matPlate);
+      facePlate.position.z = 0.032;
+      const headerBadge = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.16), matHeader);
+      headerBadge.position.set(0, 0.15, 0.047);
+      panelGroup.add(backBox, facePlate, headerBadge);
+
+      circuits.forEach((c, idx) => {
+        const sx = -0.3 + idx * 0.15;
+        const slot = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.21, 0.02), matBezel);
+        slot.position.set(sx, -0.08, 0.044);
+
+        const rocker = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.17, 0.032), matRocker);
+        rocker.position.set(sx, -0.08, 0.056);
+        rocker.rotation.x = -0.24; // ON position tilted upward
+
+        const ledMat = new THREE.MeshStandardMaterial({
+          color: 0x10b981,
+          emissive: 0x10b981,
+          emissiveIntensity: 1.4,
+          roughness: 0.2,
+        });
+        const pilotLed = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.016, 0.012), ledMat);
+        pilotLed.position.set(sx, 0.042, 0.052);
+
+        [slot, rocker, pilotLed].forEach((m) => {
+          m.userData.lightSwitchCircuitId = c.id;
+        });
+
+        const reg = this.wallSwitchRockers.get(c.id) ?? [];
+        reg.push({ rocker, ledMat });
+        this.wallSwitchRockers.set(c.id, reg);
+
+        panelGroup.add(slot, rocker, pilotLed);
+      });
+
+      // Tag housing itself to default to lobby_concourse if user clicks panel frame
+      backBox.userData.lightSwitchCircuitId = 'lobby_concourse';
+      facePlate.userData.lightSwitchCircuitId = 'lobby_concourse';
+      headerBadge.userData.lightSwitchCircuitId = 'lobby_concourse';
+
+      this.scene.add(panelGroup);
+      this.interactiveRoots.push(panelGroup);
+    };
+
+    // Mount 3 accessible physical 3D Light Switch Panels inside the terminal hall:
+    // 1. Inside Main Entrance Gate Right Wall (immediately accessible on entering hall)
+    createPanelInstance([5.8, 1.45, 17.1], Math.PI);
+    // 2. Inside Main Entrance Gate Left Wall (symmetrical twin switchboard)
+    createPanelInstance([-5.8, 1.45, 17.1], Math.PI);
+    // 3. TOC Room East Wall beside Evaluation Console
+    createPanelInstance([22.56, 1.45, 12.6], -Math.PI / 2);
+  }
+
+  private applyLightingState(): void {
+    const isNight = this.timeOfDay === 'night';
+    const indoorCircuits: LightCircuitId[] = ['lobby_concourse', 'scp_baggage', 'restricted_server', 'toc'];
+    const activeIndoorCount = indoorCircuits.filter((id) => this.lightCircuits[id]).length;
+    const indoorRatio = activeIndoorCount / indoorCircuits.length;
+
+    // 1. Sky, Horizon Fog & Night Starfield/Moon
+    const skyHex = isNight ? 0x060d1c : 0xcbd9e8;
+    (this.scene.background as THREE.Color).setHex(skyHex);
+    if (this.scene.fog instanceof THREE.FogExp2) {
+      this.scene.fog.color.setHex(skyHex);
+      this.scene.fog.density = isNight ? 0.013 : 0.011;
+    }
+    if (this.nightSkyGroup) {
+      this.nightSkyGroup.visible = isNight;
+    }
+
+    // 2. Main Global Sky & Sun/Moon Rig + Environment IBL Intensity
+    if (isNight) {
+      this.hemiLight.color.setHex(0x1e3a5f);
+      this.hemiLight.groundColor.setHex(0x0b1220);
+      this.hemiLight.intensity = 0.24 + indoorRatio * 0.22;
+
+      this.keyLight.color.setHex(0x93c5fd);
+      this.keyLight.intensity = 0.36;
+
+      this.fillLight.color.setHex(0x1e293b);
+      this.fillLight.intensity = 0.16;
+
+      this.renderer.toneMappingExposure = 0.96;
+      this.scene.environmentIntensity = 0.16 + indoorRatio * 0.34;
+    } else {
+      this.hemiLight.color.setHex(0xdbeafe);
+      this.hemiLight.groundColor.setHex(0x94a3b8);
+      this.hemiLight.intensity = 0.72 + indoorRatio * 0.22;
+
+      this.keyLight.color.setHex(0xfff7ed);
+      this.keyLight.intensity = 1.45;
+
+      this.fillLight.color.setHex(0xbfdbfe);
+      this.fillLight.intensity = 0.55;
+
+      this.renderer.toneMappingExposure = 1.08;
+      this.scene.environmentIntensity = 0.76 + indoorRatio * 0.24;
+    }
+
+    // 3. Per-Circuit Indoor Luminaires & PointLights
+    (Object.keys(this.lightCircuits) as LightCircuitId[]).forEach((circuitId) => {
+      const isOn = this.lightCircuits[circuitId];
+      const mats = this.circuitPanelMats.get(circuitId);
+      if (mats) {
+        mats.forEach((m) => {
+          m.emissiveIntensity = isOn ? (isNight ? 1.45 : 0.72) : 0.02;
+          m.color.setHex(isOn ? 0xffffff : 0x64748b);
+        });
+      }
+
+      const lights = this.circuitLights.get(circuitId);
+      if (lights) {
+        const targetIntensity = !isOn
+          ? 0
+          : circuitId === 'exterior'
+            ? isNight
+              ? 28
+              : 5
+            : isNight
+              ? 36
+              : 9;
+        lights.forEach((l) => {
+          l.intensity = targetIntensity;
+        });
+      }
+
+      // Sync physical 3D wall switch rockers & pilot LEDs
+      const rockers = this.wallSwitchRockers.get(circuitId);
+      if (rockers) {
+        rockers.forEach(({ rocker, ledMat }) => {
+          rocker.rotation.x = isOn ? -0.24 : 0.24;
+          ledMat.color.setHex(isOn ? 0x10b981 : 0xf97316);
+          ledMat.emissive.setHex(isOn ? 0x10b981 : 0xf97316);
+          ledMat.emissiveIntensity = isNight ? 1.85 : 1.15;
+        });
+      }
+    });
+
+    // 4. Exterior Golden LED Coves & Bollards
+    if (this.exteriorCoveLedMat) {
+      const extOn = this.lightCircuits.exterior;
+      this.exteriorCoveLedMat.emissiveIntensity = extOn ? (isNight ? 2.45 : 1.55) : 0.05;
+      this.exteriorCoveLedMat.color.setHex(extOn ? 0xfef3c7 : 0x475569);
+    }
+  }
+
   // ==================== PUBLIC CONTROLS ====================
+
+  public setTimeOfDay(mode: TimeOfDayMode): void {
+    this.timeOfDay = mode;
+    this.applyLightingState();
+  }
+
+  public setLightCircuits(state: LightCircuitState): void {
+    this.lightCircuits = { ...state };
+    this.applyLightingState();
+  }
 
   public setPasBroadcastState(activeZones: ZoneId[], mode: PasBroadcastMode | 'idle'): void {
     this.pasActiveZones = new Set(mode === 'idle' ? [] : activeZones);
@@ -1395,6 +1730,15 @@ export class AirportSceneController {
       const hitObj = equipHits[0].object;
       this.floorReticle.visible = false;
       this.renderer.domElement.style.cursor = 'pointer';
+      if (hitObj.userData.lightSwitchCircuitId) {
+        this.callbacks.onHoverTelemetry({
+          systemId: 'sys-fids-pas',
+          lightSwitchCircuitId: hitObj.userData.lightSwitchCircuitId as LightCircuitId,
+          screenX: e.clientX,
+          screenY: e.clientY,
+        });
+        return;
+      }
       if (hitObj.userData.isTocConsole) {
         this.callbacks.onHoverTelemetry({
           systemId: 'sys-fids-pas',
@@ -1443,10 +1787,14 @@ export class AirportSceneController {
     _pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(_pointerNdc, this.camera);
 
-    // 1. Click equipment unit or TOC evaluation desk
+    // 1. Click 3D wall light switch, equipment unit, or TOC evaluation desk
     const equipHits = this.raycaster.intersectObjects(this.interactiveRoots, true);
     if (equipHits.length > 0 && equipHits[0].distance < 32) {
       const hitObj = equipHits[0].object;
+      if (hitObj.userData.lightSwitchCircuitId) {
+        this.callbacks.onToggleLightCircuit?.(hitObj.userData.lightSwitchCircuitId as LightCircuitId);
+        return;
+      }
       if (hitObj.userData.isTocConsole) {
         this.callbacks.onOpenTocModal();
         return;
