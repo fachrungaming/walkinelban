@@ -2781,27 +2781,29 @@ export function buildPasSystem(maxAnisotropy: number): BuiltEquipmentUnit {
     pasRackSub.group.add(bar);
   });
 
-  // Slim Brushed-Aluminum Floor Stanchion + Indoor Column Speaker flanking left of PAS Rack
-  const colGroup = new THREE.Group();
-  const colPole = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.032, 2.05, 16), matGalvanized);
-  colPole.position.set(-0.5, 1.025, 0.14);
-  const colBase = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.03, 20), matPlinth);
-  colBase.position.set(-0.5, 0.015, 0.14);
-  const sharedColTex = createColumnSpeakerGrilleTexture(maxAnisotropy);
-  const colHandle = createColumnSpeakerUnit(maxAnisotropy, sharedColTex);
-  colHandle.group.scale.setScalar(0.88);
-  colHandle.group.position.set(-0.5, 1.88, 0.19);
-  colHandle.group.rotation.x = 0.08;
-  const colExtraWaves = attachExtraWaveRings(colHandle, 0.22);
-  colGroup.add(colPole, colBase, colHandle.group);
-  colGroup.traverse((c) => {
-    if (!c.userData.isWaveEffect) c.userData.pasInteractiveAction = 'test-column';
-  });
-  pasRackSub.group.add(colGroup);
-
   tagInteractive(pasRackSub.group, 'sys-pas', 'comp-pas-aas', pasRackSub.subsystemLayer);
   subComponents.push(pasRackSub);
   root.add(pasRackSub.group);
+
+  // --- PA-05: Slim Brushed-Aluminum Floor Stanchion + Indoor Column Speaker (20W Line-Array) ---
+  const columnSub = makeSubGroup('sys-pas', 'comp-pas-column', [-0.86, 0, 0.04]);
+  const colPole = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.032, 2.05, 16), matGalvanized);
+  colPole.position.set(0, 1.025, 0);
+  const colBase = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.03, 20), matPlinth);
+  colBase.position.set(0, 0.015, 0);
+  const sharedColTex = createColumnSpeakerGrilleTexture(maxAnisotropy);
+  const colHandle = createColumnSpeakerUnit(maxAnisotropy, sharedColTex);
+  colHandle.group.scale.setScalar(0.88);
+  colHandle.group.position.set(0, 1.88, 0.05);
+  colHandle.group.rotation.x = 0.08;
+  const colExtraWaves = attachExtraWaveRings(colHandle, 0.22);
+  columnSub.group.add(colPole, colBase, colHandle.group);
+  columnSub.group.traverse((c) => {
+    if (!c.userData.isWaveEffect) c.userData.pasInteractiveAction = 'test-column';
+  });
+  tagInteractive(columnSub.group, 'sys-pas', 'comp-pas-column', columnSub.subsystemLayer);
+  subComponents.push(columnSub);
+  root.add(columnSub.group);
 
   // --- PA-02: BOSCH Call Station (Interactive PTT) + Zone Extension Keypad on Operator Pedestal ---
   const pagingSub = makeSubGroup('sys-pas', 'comp-pas-paging', [0.46, 0, 0.24]);

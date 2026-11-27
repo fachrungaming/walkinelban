@@ -1384,6 +1384,51 @@ export const ELECTRONIC_COMPONENTS: ElectronicComponent[] = [
     xpReward: 25,
     priorityTag: 'Wajib Praktikum',
   },
+  {
+    id: 'comp-pas-column',
+    code: 'PA-05',
+    systemId: 'sys-pas',
+    zoneId: 'concourse',
+    name_id: 'Column Speaker 100V Line (Speaker Kolom 20W)',
+    name_en: '100V Line Column Speaker (20W Indoor Line-Array)',
+    subsystemLayer: 'Transmisi & Audio/Visual',
+    subElements_id: [
+      'Grille Depan Perforasi & Casing Aluminium Ekstrusi dengan Bracket Dinding',
+      '1× Tweeter Frekuensi Tinggi + 4× Speaker Full-Range Line-Array Vertikal',
+      'Sistem Crossover Pasif (Induktor + Kapasitor), Kabel Internal & Bahan Peredam Akustik',
+      'Sekat Internal, Transformator Matching 100V & Terminal Input + Selektor Daya',
+    ],
+    subElements_en: [
+      'Perforated Front Grille & Extruded Aluminum Enclosure with Wall Bracket',
+      '1× High-Frequency Dome Tweeter + 4× Vertical Line-Array Full-Range Drivers',
+      'Passive Crossover PCB (Inductors + Capacitors), Internal Wiring & Acoustic Damping Wool',
+      'Internal Acoustic Partitions, 100V Matching Transformer & Input Terminal / Power Selector',
+    ],
+    summary_id: 'Speaker kolom line-array 100V (20W) dengan 1 Tweeter dan 4 Driver Full-Range untuk proyeksi suara jernih dan fokus di aula terminal bergema.',
+    summary_en: '20W 100V Line vertical column array speaker pairing 1 Tweeter and 4 Full-Range drivers for focused speech intelligibility in reverberant terminal halls.',
+    description_id:
+      'Column Speaker (Speaker Kolom) menyusun 1 unit Tweeter di kompartemen atas dan 4 unit Speaker Full-Range secara vertikal dalam casing aluminium dengan bahan peredam akustik (acoustic damping) agar pantulan suara ke langit-langit berkurang dan kejelasan pengumuman (STI) tetap tinggi di ruang terminal luas. Di ruang bawah yang dipisahkan sekat internal terdapat Transformator Matching 100V dan Terminal Input dengan Selektor Daya, yang menyalurkan sinyal melalui Sistem Crossover pasif ke seluruh driver.',
+    description_en:
+      'The Column Speaker vertically aligns 1 upper dome Tweeter and 4 Full-Range drivers inside an extruded aluminum enclosure lined with acoustic damping wool to narrow vertical dispersion and maintain high speech intelligibility across reverberant concourses. Separated by an internal partition shelf, the lower bay houses a 100V Matching Transformer and Input Terminal with Power Selector feeding the passive Crossover PCB and driver array.',
+    technicalSpecs: {
+      voltageOrPower: '100 V Line · Tap Daya 20 W / 10 W / 5 W (Selektor Daya)',
+      signalType: 'Analog 100V Line -> Trafo Matching -> Crossover Pasif -> 1 TW + 4 FR',
+      criticalSafetyNote_id: 'Atur selektor daya (20W/10W/5W) pada terminal input sebelum menyalakan jalur 100V agar impedansi total tidak melebihi kapasitas amplifier.',
+      criticalSafetyNote_en: 'Set the power tap selector (20W/10W/5W) before energizing the 100V line so total speaker load remains within amplifier limits.',
+    },
+    signalFlowChain: {
+      inputFrom_id: 'Kabel 100V Line dari Terminal Phoenix Rak PAS 42U -> Terminal Input',
+      inputFrom_en: '100V Line Feed from 42U PAS Rack Phoenix Terminals -> Input Terminal',
+      process_id: 'Selektor Daya -> Trafo Matching 100V -> Sistem Crossover (TW & 4× FR)',
+      process_en: 'Power Selector -> 100V Matching Transformer -> Passive Crossover (TW & 4× FR)',
+      outputTo_id: 'Proyeksi Gelombang Akustik Horizontal Terarah (Line-Array) di Aula',
+      outputTo_en: 'Focused Horizontal Line-Array Acoustic Projection Across Terminal Hall',
+    },
+    meshNodeName: 'pas_column',
+    explodedOffset: { x: -0.92, y: 0.35, z: 0.15 },
+    xpReward: 25,
+    priorityTag: 'Wajib Praktikum',
+  },
 
   // ======================== 6. GROUND COMMUNICATIONS RADIO & IGCS (2) ========================
   {

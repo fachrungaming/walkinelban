@@ -193,8 +193,8 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
   }, [searchQuery, selectedSystem, selectedLayer, sortOrder, loggedSet]);
 
   return (
-    <div className="fixed inset-0 top-16 z-20 bg-[#262626] text-[#F5F3EE] overflow-y-auto elban-scroll">
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="fixed inset-0 pt-20 z-20 bg-[#262626] text-[#F5F3EE] overflow-y-auto elban-scroll">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Directory Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#454545]">
           <div>
@@ -204,8 +204,10 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
               {loggedComponentIds.length}/{ELECTRONIC_COMPONENTS.length}{' '}
               {lang === 'id' ? 'tercatat' : 'logged'}
             </div>
-            <h1 className="font-charm text-3xl sm:text-4xl font-bold text-[#FFDB00] mt-1">
-              {lang === 'id' ? 'Mode Direktori Teknis ElBan' : 'ElBan Technical Equipment Directory'}
+            <h1 className="font-charm text-3xl sm:text-4xl font-bold text-[#F5F3EE] mt-1.5 leading-snug">
+              <span className="marker-highlight-full">
+                {lang === 'id' ? 'Mode Direktori Teknis ElBan' : 'ElBan Technical Equipment Directory'}
+              </span>
             </h1>
             <p className="text-sm sm:text-base text-[#D6D3CB] mt-1 max-w-2xl">
               {lang === 'id'
@@ -344,7 +346,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
               return (
                 <article
                   key={comp.id}
-                  className="bg-[#323232] border border-[#4A4A4A] rounded-xl overflow-hidden flex flex-col hover:border-[#FFDB00]/60 transition-colors"
+                  className="group bg-[#323232] border border-[#4A4A4A] rounded-xl overflow-hidden flex flex-col hover:border-[#FFDB00]/60 transition-colors"
                 >
                   <SystemSchematicArt systemId={comp.systemId} accent="#FFDB00" />
 
@@ -363,7 +365,9 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                     </div>
 
                     <h2 className="font-charm text-xl font-bold text-[#F5F3EE] mt-2 leading-snug">
-                      {lang === 'id' ? comp.name_id : comp.name_en}
+                      <span className="marker-highlight-hover">
+                        {lang === 'id' ? comp.name_id : comp.name_en}
+                      </span>
                     </h2>
 
                     <p className="text-sm text-[#D6D3CB] mt-1.5 leading-relaxed line-clamp-2 flex-1">

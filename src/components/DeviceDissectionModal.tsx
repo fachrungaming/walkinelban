@@ -86,13 +86,19 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
   const initialSimParams = useMemo<DissectionSimParams>(
     () => ({
       ...DEFAULT_DISSECTION_SIM_PARAMS,
-      explodedFactor: blueprint.modelKind === 'pas_ceiling' ? 0.65 : DEFAULT_DISSECTION_SIM_PARAMS.explodedFactor,
+      explodedFactor:
+        blueprint.modelKind === 'pas_ceiling'
+          ? 0.65
+          : blueprint.modelKind === 'pas_column'
+            ? 0
+            : DEFAULT_DISSECTION_SIM_PARAMS.explodedFactor,
     }),
     [blueprint.modelKind]
   );
 
   const [activeTab, setActiveTab] = useState<DissectionRightTab>('inspector');
   const [selectedPartId, setSelectedPartId] = useState<string>(blueprint.parts[0].id);
+  const [highlightedPartId, setHighlightedPartId] = useState<string | null>(null);
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
   const [simParams, setSimParams] = useState<DissectionSimParams>(initialSimParams);
   const [activeFaultIds, setActiveFaultIds] = useState<string[]>([]);
@@ -119,6 +125,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
   // Reset local state when switching componentId
   useEffect(() => {
     setSelectedPartId(blueprint.parts[0].id);
+    setHighlightedPartId(null);
     setSimParams(initialSimParams);
     setActiveFaultIds([]);
     setActiveCameraPreset('isometric');
@@ -150,6 +157,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
   const simParamsRef = useRef(simParams);
   const telemetryMapRef = useRef(telemetryMap);
   const selectedPartIdRef = useRef(selectedPartId);
+  const highlightedPartIdRef = useRef<string | null>(highlightedPartId);
   const hoveredPartIdRef = useRef(hoveredPartId);
   const signalBlockedRef = useRef(signalBlocked);
   const nightModeRef = useRef(nightMode);
@@ -169,6 +177,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
   simParamsRef.current = simParams;
   telemetryMapRef.current = telemetryMap;
   selectedPartIdRef.current = selectedPartId;
+  highlightedPartIdRef.current = highlightedPartId;
   hoveredPartIdRef.current = hoveredPartId;
   signalBlockedRef.current = signalBlocked;
   nightModeRef.current = nightMode;
@@ -220,6 +229,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
       const part = blueprint.parts.find((p) => p.id === partId);
       if (!part) return;
       setSelectedPartId(partId);
+      setHighlightedPartId(partId);
       playTone(680, 0.045, 'sine', 0.035);
       if (focusCam) {
         const exp = simParamsRef.current.explodedFactor;
@@ -260,6 +270,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
     setSimParams(initialSimParams);
     setActiveFaultIds([]);
     setSelectedPartId(blueprint.parts[0].id);
+    setHighlightedPartId(null);
     setMinimizedSections({ telemetryBar: true });
     setRightPanelOpen(false);
     setToolbarOpen(false);
@@ -344,7 +355,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
       keyLight.shadow.bias = -0.0005;
     }
     scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.65);
+    const rimLight = new THREE.DirectionalLight(0xf8fafc, 0.52);
     rimLight.position.set(-5, 4, -4.5);
     scene.add(rimLight);
 
@@ -475,12 +486,19 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
       const pid = pickPart(e.clientX, e.clientY);
       if (pid) {
         handleSelectPart(pid, true);
+      } else {
+        setHighlightedPartId(null);
       }
+    };
+
+    const onPointerLeave = () => {
+      setHoveredPartId(null);
     };
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave);
 
     const handleResize = () => {
       if (!container) return;
@@ -557,7 +575,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
         model,
         simParamsRef.current,
         telemetryMapRef.current,
-        selectedPartIdRef.current,
+        highlightedPartIdRef.current,
         hoveredPartIdRef.current,
         signalBlockedRef.current,
         delta,
@@ -584,6 +602,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
       controls.dispose();
       model.dispose();
       envTex.dispose();
@@ -620,6 +639,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
 
   const canTestAudio =
     componentId === 'comp-pas-ceiling' ||
+    componentId === 'comp-pas-column' ||
     componentId === 'comp-pas-horn' ||
     componentId === 'comp-pas-aas' ||
     componentId === 'comp-pas-paging';
@@ -638,21 +658,32 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
       aria-modal="true"
       aria-label={`Bedah Komponen ${blueprint.deviceName}`}
     >
-      {/* ==================== TOP DIGITAL TWIN HEADER (Server Rack Reference) ==================== */}
-      <header className="h-14 shrink-0 bg-[#323232] border-b border-[#4A4A4A] px-3 sm:px-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-[#FFDB00] text-[#242424] flex items-center justify-center shrink-0 font-mono-tech text-xs font-bold">
+      {/* ==================== TOP FLOATING PILL NAVBAR (Strictly 1 Row) ==================== */}
+      <header
+        className={`absolute top-3 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100vw-1.5rem)] rounded-full border px-2.5 sm:px-3 py-1.5 flex flex-nowrap items-center justify-between gap-2 whitespace-nowrap shadow-[0_14px_38px_rgba(0,0,0,0.52)] transition-colors ${
+          nightMode
+            ? 'bg-[#242424]/96 border-[#FFDB00]/45 ring-1 ring-[#FFDB00]/15'
+            : 'bg-[#323232]/96 border-[#525252] ring-1 ring-white/10'
+        }`}
+      >
+        <div className="flex items-center gap-2 min-w-0 pl-0.5 shrink">
+          <div className="w-8 h-8 rounded-full bg-[#FFDB00] text-[#242424] flex items-center justify-center shrink-0 font-mono-tech text-[11px] font-bold shadow-xs">
             {blueprint.deviceCode}
           </div>
-          <div className="min-w-0">
-            <h2 className="font-charm text-lg sm:text-xl font-bold text-[#FFDB00] truncate leading-tight">
-              {lang === 'id' ? `Bedah Komponen · ${blueprint.deviceName}` : `Component Dissection · ${blueprint.deviceName}`}
+          <div className="min-w-0 max-w-[115px] sm:max-w-[175px] xl:max-w-[240px]">
+            <h2
+              title={lang === 'id' ? `Bedah · ${blueprint.deviceName}` : `Dissect · ${blueprint.deviceName}`}
+              className="font-charm text-sm sm:text-base font-bold text-[#FFDB00] truncate leading-tight"
+            >
+              {lang === 'id' ? `Bedah · ${blueprint.deviceName}` : `Dissect · ${blueprint.deviceName}`}
             </h2>
           </div>
         </div>
 
-        {/* 3 Navigation Tabs */}
-        <div className="hidden lg:flex items-center gap-1 bg-[#242424] p-1 rounded-lg border border-[#454545]">
+        <span className="hidden lg:inline-block h-5 w-px bg-[#4E4E4E] shrink-0" aria-hidden="true" />
+
+        {/* 3 Navigation Tabs (Inner Pill Switcher) */}
+        <div className="hidden lg:flex flex-nowrap items-center gap-1 bg-[#242424] p-0.5 rounded-full border border-[#454545] shrink-0">
           {(
             [
               { id: 'inspector', label: lang === 'id' ? 'Bedah & Telemetri' : 'Dissect & Telemetry', icon: Cpu },
@@ -670,7 +701,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
                   setActiveTab(t.id);
                   setRightPanelOpen(true);
                 }}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
                   active
                     ? 'bg-[#FFDB00] text-[#242424] font-bold'
                     : 'text-[#D6D3CB] hover:text-white hover:bg-[#3D3D3D]'
@@ -683,15 +714,17 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
           })}
         </div>
 
+        <span className="hidden md:inline-block h-5 w-px bg-[#4E4E4E] shrink-0" aria-hidden="true" />
+
         {/* Right Header Actions (Mode Siang/Malam + Saklar Lampu + Reset + Panel + Kembali) */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={() => {
               setNightMode((v) => !v);
               playTone(nightMode ? 640 : 420, 0.05, 'sine', 0.04);
             }}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+            className={`h-8 px-2.5 rounded-full border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
               nightMode
                 ? 'bg-[#FFDB00] hover:bg-[#E6C500] border-[#FFDB00] text-[#242424] font-bold'
                 : 'bg-[#262626] hover:bg-[#3D3D3D] border-[#4A4A4A] text-[#F5F3EE]'
@@ -708,7 +741,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
               setLampOn((v) => !v);
               playTone(lampOn ? 320 : 820, 0.045, 'triangle', 0.05);
             }}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+            className={`h-8 px-2.5 rounded-full border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
               lampOn
                 ? 'bg-[#FFDB00] hover:bg-[#E6C500] border-[#FFDB00] text-[#242424] font-bold'
                 : 'bg-[#262626] hover:bg-[#3D3D3D] border-[#4A4A4A] text-[#BDBAB2]'
@@ -718,7 +751,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
             <Lightbulb className={`w-3.5 h-3.5 ${lampOn ? 'fill-[#242424]' : ''}`} />
             <span className="hidden sm:inline">Lampu</span>
             <span
-              className={`font-mono-tech text-[10px] font-bold px-1 rounded ${
+              className={`font-mono-tech text-[10px] font-bold px-1.5 rounded-full ${
                 lampOn ? 'bg-[#242424]/15 text-[#242424]' : 'bg-[#1D1D1D] text-[#9A978F]'
               }`}
             >
@@ -729,7 +762,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
           <button
             type="button"
             onClick={handleResetSimulation}
-            className="px-2.5 py-1.5 rounded-lg bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-xs font-semibold text-[#F5F3EE] flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="h-8 px-2.5 rounded-full bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-xs font-semibold text-[#F5F3EE] flex items-center gap-1.5 cursor-pointer transition-colors"
             title="Reset Bedah 3D"
           >
             <RotateCcw className="w-3.5 h-3.5 text-[#FFDB00]" />
@@ -738,15 +771,15 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
           <button
             type="button"
             onClick={() => setRightPanelOpen((v) => !v)}
-            className="px-2.5 py-1.5 rounded-lg bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-xs font-semibold text-[#F5F3EE] flex items-center gap-1 cursor-pointer transition-colors"
+            className="h-8 px-2.5 rounded-full bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-xs font-semibold text-[#F5F3EE] flex items-center gap-1 cursor-pointer transition-colors"
           >
             {rightPanelOpen ? <ChevronRight className="w-3.5 h-3.5 text-[#FFDB00]" /> : <ChevronLeft className="w-3.5 h-3.5 text-[#FFDB00]" />}
-            <span className="hidden xl:inline">{rightPanelOpen ? 'Sembunyikan Panel' : 'Panel Bedah'}</span>
+            <span className="hidden 2xl:inline">{rightPanelOpen ? 'Sembunyikan Panel' : 'Panel Bedah'}</span>
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="h-8 px-3 rounded-full bg-rose-600 hover:bg-rose-700 text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer transition-colors"
           >
             <X className="w-3.5 h-3.5" />
             <span>{lang === 'id' ? 'Kembali' : 'Back'}</span>
@@ -760,8 +793,8 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
         <div className="relative flex-1 min-h-[340px] bg-[#1E1E1E] overflow-hidden">
           <div ref={viewportRef} className="w-full h-full" />
 
-          {/* Top-Center Live Telemetry Strip (Aligned at Top Edge) */}
-          <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-10 max-w-[56%] sm:max-w-[60%] pointer-events-none flex justify-center">
+          {/* Top-Center Live Telemetry Strip (Aligned Below Floating Pill Navbar) */}
+          <div className="absolute top-[72px] left-1/2 -translate-x-1/2 z-10 max-w-[56%] sm:max-w-[60%] pointer-events-none flex justify-center">
             {isSectionMinimized('telemetryBar') ? (
               <button
                 type="button"
@@ -814,7 +847,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
             <button
               type="button"
               onClick={() => setRightPanelOpen(true)}
-              className="absolute top-2.5 right-3 z-10 px-3 py-1.5 rounded-lg bg-[#FFDB00] hover:bg-[#E6C500] border border-[#FFDB00] text-xs font-bold text-[#242424] shadow-md flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="absolute top-[72px] right-3 z-10 px-3 py-1.5 rounded-full bg-[#FFDB00] hover:bg-[#E6C500] border border-[#FFDB00] text-xs font-bold text-[#242424] shadow-md flex items-center gap-1.5 cursor-pointer transition-colors"
               title="Tampilkan Panel Bedah"
             >
               <ChevronLeft className="w-3.5 h-3.5 text-[#242424]" />
@@ -823,8 +856,8 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
             </button>
           )}
 
-          {/* Collapsible Left Toolbar Bedah 3D (Aligned at Top-Left) */}
-          <div className="absolute top-2.5 left-3 bottom-3 z-10 flex flex-col pointer-events-none max-w-[258px]">
+          {/* Collapsible Left Toolbar Bedah 3D (Aligned Below Floating Pill Navbar) */}
+          <div className="absolute top-[72px] left-3 bottom-3 z-10 flex flex-col pointer-events-none max-w-[258px]">
             <button
               type="button"
               onClick={() => setToolbarOpen((v) => !v)}
@@ -1144,7 +1177,7 @@ export const DeviceDissectionModal: React.FC<DeviceDissectionModalProps> = ({
 
         {/* ==================== RIGHT COLLAPSIBLE LEARNING & DIAGNOSTIC PANEL ==================== */}
         {rightPanelOpen && (
-          <aside className="w-full lg:w-[410px] xl:w-[435px] shrink-0 bg-[#323232] text-[#F5F3EE] border-t lg:border-t-0 lg:border-l border-[#4A4A4A] flex flex-col max-h-[48vh] lg:max-h-none">
+          <aside className="w-full lg:w-[410px] xl:w-[435px] shrink-0 bg-[#323232] text-[#F5F3EE] border-t lg:border-t-0 lg:border-l border-[#4A4A4A] flex flex-col max-h-[48vh] lg:max-h-none lg:pt-[68px]">
             {/* Mobile Tab Switcher + Quick Minimize Controls Bar */}
             <div className="border-b border-[#4A4A4A] bg-[#262626] px-3 py-2 flex items-center justify-between gap-2 shrink-0">
               <div className="flex lg:hidden gap-1 overflow-x-auto">

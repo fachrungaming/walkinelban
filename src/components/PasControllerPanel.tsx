@@ -236,7 +236,9 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
               PAS / AAS · 100V ZONE MATRIX
             </div>
             <div className="font-charm text-base font-bold truncate leading-tight">
-              {lang === 'id' ? 'Kontroler Audio Publik Terminal' : 'Terminal Public Address Controller'}
+              <span className="marker-highlight-underline">
+                {lang === 'id' ? 'Kontroler Audio Publik Terminal' : 'Terminal Public Address Controller'}
+              </span>
             </div>
           </div>
         </div>

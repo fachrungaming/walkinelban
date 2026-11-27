@@ -1294,16 +1294,21 @@ export function applyRackRuntimeVisuals(
   kvmOpenCurrentRef.value = THREE.MathUtils.damp(kvmOpenCurrentRef.value, targetKvm, lambda, delta);
   rack.updateKvmPose(kvmOpenCurrentRef.value);
 
-  // Per-unit exploded view + assembly offset + LED / selection highlight
+  // Per-unit exploded view + assembly offset + hover micro-slide + LED / selection highlight
   rack.unitHandles.forEach((h, unitId) => {
-    const assemblyOffset = (h.group.userData.assemblyZOffset as number) || 0;
-    const targetZ = h.baseZ + params.explodedFactor * h.explodeZ + assemblyOffset;
-    h.group.position.z = THREE.MathUtils.damp(h.group.position.z, targetZ, lambda, delta);
-
     const isSelected = unitId === selectedUnitId;
     const isHovered = unitId === hoveredUnitId;
+    const assemblyOffset = (h.group.userData.assemblyZOffset as number) || 0;
+    const hoverSlideZ = isHovered ? 0.032 : 0;
+    const targetZ = h.baseZ + params.explodedFactor * h.explodeZ + assemblyOffset + hoverSlideZ;
+    h.group.position.z = THREE.MathUtils.damp(h.group.position.z, targetZ, isHovered ? 12 : lambda, delta);
+
     const hlMat = h.highlightMesh.material as THREE.MeshBasicMaterial;
-    hlMat.opacity = isSelected ? 0.65 : isHovered ? 0.35 : 0;
+    hlMat.opacity = isSelected
+      ? 0.62 + Math.sin(elapsed * 4.2) * 0.08
+      : isHovered
+        ? 0.4 + Math.sin(elapsed * 6.5) * 0.12
+        : 0;
 
     // LED status tinting based on faults
     let ledHex = 0x22c55e;

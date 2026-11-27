@@ -78,3 +78,206 @@
 .elban-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 219, 0, 0.65);
 }
+
+/* ==================== MARKER HIGHLIGHT TEXT ANIMATIONS ==================== */
+@keyframes markerSweepX {
+  0% {
+    transform: scaleX(0) skewX(-6deg);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scaleX(1) skewX(-6deg);
+    opacity: 1;
+  }
+}
+
+@keyframes markerInkShift {
+  0%,
+  32% {
+    color: #F5F3EE;
+  }
+  100% {
+    color: #242424;
+  }
+}
+
+@keyframes markerMultilineSweep {
+  0% {
+    background-size: 0% 44%;
+  }
+  100% {
+    background-size: 100% 44%;
+  }
+}
+
+@keyframes markerFullSweep {
+  0% {
+    background-size: 0% 92%;
+  }
+  100% {
+    background-size: 100% 92%;
+  }
+}
+
+/* 1. Primary Full Chisel-Tip Marker Highlight (Gold #FFDB00 stroke + deep charcoal ink) */
+.marker-highlight {
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+  padding: 0.02em 0.34em 0.04em;
+  color: #242424;
+  animation: markerInkShift 0.68s cubic-bezier(0.22, 1, 0.36, 1) var(--marker-delay, 0ms) both;
+}
+
+.marker-highlight::before {
+  content: '';
+  position: absolute;
+  inset: 0.08em -0.04em 0.04em -0.04em;
+  z-index: -1;
+  border-radius: 0.32em 0.14em 0.36em 0.16em;
+  background: linear-gradient(
+    102deg,
+    rgba(255, 219, 0, 0.92) 0%,
+    #FFDB00 35%,
+    #FFE548 72%,
+    rgba(255, 219, 0, 0.88) 100%
+  );
+  box-shadow: 0 2px 10px rgba(255, 219, 0, 0.22);
+  transform-origin: left center;
+  transform: scaleX(0) skewX(-6deg);
+  animation: markerSweepX 0.68s cubic-bezier(0.22, 1, 0.36, 1) var(--marker-delay, 0ms) forwards;
+}
+
+/* 1b. Multi-Line Full Gold Marker Highlight (Hugs each wrapped line cleanly with dark charcoal ink) */
+.marker-highlight-full {
+  display: inline;
+  padding: 0.04em 0.28em 0.06em;
+  border-radius: 0.26em 0.12em 0.28em 0.12em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background-image: linear-gradient(
+    102deg,
+    rgba(255, 219, 0, 0.92) 0%,
+    #FFDB00 35%,
+    #FFE548 72%,
+    rgba(255, 219, 0, 0.9) 100%
+  );
+  background-repeat: no-repeat;
+  background-position: 0 58%;
+  background-size: 0% 92%;
+  color: #242424;
+  animation:
+    markerFullSweep 0.72s cubic-bezier(0.22, 1, 0.36, 1) var(--marker-delay, 0ms) forwards,
+    markerInkShift 0.72s cubic-bezier(0.22, 1, 0.36, 1) var(--marker-delay, 0ms) both;
+}
+
+/* 2. Multi-Line Editorial Marker Highlight (sweeps cleanly across wrapped lines) */
+.marker-highlight-multiline {
+  display: inline;
+  padding: 0.04em 0.2em 0.06em;
+  border-radius: 0.2em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background-image: linear-gradient(
+    104deg,
+    rgba(255, 219, 0, 0) 0.5%,
+    rgba(255, 219, 0, 0.42) 3%,
+    rgba(255, 219, 0, 0.36) 96%,
+    rgba(255, 219, 0, 0) 99.5%
+  );
+  background-repeat: no-repeat;
+  background-position: 0 88%;
+  background-size: 0% 44%;
+  animation: markerMultilineSweep 0.78s cubic-bezier(0.22, 1, 0.36, 1) var(--marker-delay, 0ms) forwards;
+}
+
+/* 3. Subtle Lower-Edge Marker Stroke (Ideal for Navbar Brand & Section Headings on dark charcoal) */
+.marker-highlight-underline {
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+  padding: 0 0.16em;
+}
+
+.marker-highlight-underline::before {
+  content: '';
+  position: absolute;
+  left: -0.04em;
+  right: -0.04em;
+  bottom: 0.06em;
+  height: 0.44em;
+  z-index: -1;
+  border-radius: 0.24em 0.1em 0.28em 0.12em;
+  background: linear-gradient(
+    98deg,
+    rgba(255, 219, 0, 0.28) 0%,
+    rgba(255, 219, 0, 0.46) 55%,
+    rgba(255, 219, 0, 0.22) 100%
+  );
+  transform-origin: left center;
+  transform: scaleX(0) skewX(-6deg);
+  animation: markerSweepX 0.62s cubic-bezier(0.22, 1, 0.36, 1) var(--marker-delay, 0ms) forwards;
+}
+
+/* 4. Interactive Hover Marker Sweep (Sweeps smoothly when parent .group or element is hovered) */
+.marker-highlight-hover {
+  position: relative;
+  display: inline;
+  padding: 0.02em 0.14em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background-image: linear-gradient(
+    102deg,
+    rgba(255, 219, 0, 0.34) 0%,
+    rgba(255, 219, 0, 0.48) 65%,
+    rgba(255, 219, 0, 0.26) 100%
+  );
+  background-repeat: no-repeat;
+  background-position: 0 88%;
+  background-size: 0% 42%;
+  transition: background-size 0.26s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease;
+}
+
+.group:hover .marker-highlight-hover,
+.marker-highlight-hover:hover,
+.marker-highlight-hover:focus-visible {
+  background-size: 100% 42%;
+  color: #FFDB00;
+}
+
+.marker-delay-1 {
+  --marker-delay: 120ms;
+}
+
+.marker-delay-2 {
+  --marker-delay: 280ms;
+}
+
+.marker-delay-3 {
+  --marker-delay: 440ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker-highlight,
+  .marker-highlight-full {
+    animation: none;
+    color: #242424;
+  }
+  .marker-highlight-full {
+    background-size: 100% 92%;
+  }
+  .marker-highlight::before,
+  .marker-highlight-underline::before {
+    animation: none;
+    transform: scaleX(1) skewX(-6deg);
+    opacity: 1;
+  }
+  .marker-highlight-multiline {
+    animation: none;
+    background-size: 100% 44%;
+  }
+  .marker-highlight-hover {
+    transition: none;
+  }
+}
+

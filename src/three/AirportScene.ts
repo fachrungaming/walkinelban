@@ -131,6 +131,8 @@ export class AirportSceneController {
   private baggageCarouselBags: THREE.Object3D[] = [];
   private raycaster = new THREE.Raycaster();
   private lastRaycastMs = 0;
+  private hoveredObject: THREE.Object3D | null = null;
+  private hoveredAnimatingSet = new Set<THREE.Object3D>();
   private activeZoneId: ZoneId = 'lobby';
   private activeLayerFilter: SubsystemLayer | 'ALL' = 'ALL';
   private lastClockTickSec = -1;
@@ -1120,6 +1122,7 @@ export class AirportSceneController {
     });
     group.add(boschPasRack.group);
 
+    group.userData.isMultiItemGroup = true;
     this.scene.add(group);
     this.interactiveRoots.push(group);
     this.collisionBoxes.push({ minX: 11.4, maxX: 18.2, minZ: -9.8, maxZ: -5.4 });
@@ -1223,6 +1226,7 @@ export class AirportSceneController {
       }
     });
 
+    netGroup.userData.isMultiItemGroup = true;
     this.scene.add(netGroup);
     this.interactiveRoots.push(netGroup);
   }
@@ -1314,6 +1318,9 @@ export class AirportSceneController {
       spk.group.rotation.order = 'YXZ';
       spk.group.rotation.y = cfg.rotY;
       spk.group.rotation.x = cfg.pitchX;
+      spk.group.traverse((c) => {
+        if (!c.userData.isWaveEffect) c.userData.componentId = 'comp-pas-column';
+      });
       pasNetGroup.add(spk.group);
       registerSpeaker(cfg.zone, spk);
     });
@@ -1366,6 +1373,7 @@ export class AirportSceneController {
       }
     });
 
+    pasNetGroup.userData.isMultiItemGroup = true;
     this.scene.add(pasNetGroup);
     this.interactiveRoots.push(pasNetGroup);
   }
@@ -1671,8 +1679,8 @@ export class AirportSceneController {
                   mesh.userData.origEmissiveHex = std.emissive.getHex();
                   mesh.userData.origEmissiveIntensity = std.emissiveIntensity;
                 }
-                std.emissive.setHex(0x0284c7);
-                std.emissiveIntensity = 0.55;
+                std.emissive.setHex(0xffdb00);
+                std.emissiveIntensity = 0.32;
               }
             } else {
               std.transparent = true;
@@ -1743,11 +1751,13 @@ export class AirportSceneController {
       this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.0036, -0.72, 1.15);
       this.lastPointerX = e.clientX;
       this.lastPointerY = e.clientY;
+      this.setHoveredObject(null);
       this.callbacks.onHoverTelemetry(null);
       return;
     }
 
     if (!insideCanvas || this.introPlaying) {
+      this.setHoveredObject(null);
       this.floorReticle.visible = false;
       return;
     }
@@ -1765,6 +1775,7 @@ export class AirportSceneController {
       const hitObj = equipHits[0].object;
       this.floorReticle.visible = false;
       this.renderer.domElement.style.cursor = 'pointer';
+      this.setHoveredObject(this.resolveHoverTarget(hitObj));
       if (hitObj.userData.lightSwitchCircuitId) {
         this.callbacks.onHoverTelemetry({
           systemId: 'sys-fids-pas',
@@ -1806,6 +1817,7 @@ export class AirportSceneController {
       }
     }
 
+    this.setHoveredObject(null);
     this.callbacks.onHoverTelemetry(null);
 
     // Check walkable floor hover for click-to-teleport reticle
@@ -1821,6 +1833,42 @@ export class AirportSceneController {
     }
     this.floorReticle.visible = false;
     this.renderer.domElement.style.cursor = 'grab';
+  }
+
+  private resolveHoverTarget(hitObj: THREE.Object3D): THREE.Object3D | null {
+    if (hitObj.userData.lightSwitchCircuitId) {
+      return hitObj;
+    }
+    let cur: THREE.Object3D | null = hitObj;
+    let prev: THREE.Object3D | null = hitObj;
+    while (cur) {
+      if (this.interactiveRoots.includes(cur)) {
+        if (cur.userData.isMultiItemGroup && prev && prev !== cur) {
+          return prev;
+        }
+        return cur;
+      }
+      prev = cur;
+      cur = cur.parent;
+    }
+    return null;
+  }
+
+  private setHoveredObject(next: THREE.Object3D | null): void {
+    if (this.hoveredObject === next) return;
+    if (this.hoveredObject) {
+      this.hoveredAnimatingSet.add(this.hoveredObject);
+    }
+    this.hoveredObject = next;
+    if (next) {
+      if (!next.userData.hoverOrigScale) {
+        next.userData.hoverOrigScale = next.scale.clone();
+      }
+      if (typeof next.userData.hoverAmt !== 'number') {
+        next.userData.hoverAmt = 0;
+      }
+      this.hoveredAnimatingSet.add(next);
+    }
   }
 
   private handlePointerUp(e: PointerEvent): void {
@@ -2123,6 +2171,62 @@ export class AirportSceneController {
           imp.rotation.y += fanStep;
         }
       }
+    }
+
+    // Smooth 3D hover micro-animation on any touched equipment, switch, rack, or desk
+    if (this.hoveredAnimatingSet.size > 0) {
+      const goldEmissive = 0xffdb00;
+      const pulse = 0.16 + Math.sin(elapsed * 5.6) * 0.045;
+      this.hoveredAnimatingSet.forEach((obj) => {
+        const isCurrent = obj === this.hoveredObject;
+        const target = isCurrent ? 1 : 0;
+        const prevAmt = (obj.userData.hoverAmt as number) ?? 0;
+        const nextAmt = THREE.MathUtils.damp(prevAmt, target, 13, delta);
+        obj.userData.hoverAmt = nextAmt;
+
+        const origScale = obj.userData.hoverOrigScale as THREE.Vector3 | undefined;
+        if (origScale) {
+          const breathe = isCurrent ? Math.sin(elapsed * 5.2) * 0.005 * nextAmt : 0;
+          const mult = 1 + nextAmt * 0.026 + breathe;
+          obj.scale.set(origScale.x * mult, origScale.y * mult, origScale.z * mult);
+        }
+
+        if (this.activeLayerFilter === 'ALL') {
+          obj.traverse((child) => {
+            const mesh = child as THREE.Mesh;
+            if (!mesh.isMesh || mesh.userData.isWaveEffect) return;
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            for (const rawMat of mats) {
+              const std = rawMat as THREE.MeshStandardMaterial;
+              if (!std || !std.emissive || std.emissiveMap) continue;
+              if (mesh.userData.hoverOrigEmissiveHex === undefined) {
+                mesh.userData.hoverOrigEmissiveHex = std.emissive.getHex();
+                mesh.userData.hoverOrigEmissiveIntensity = std.emissiveIntensity;
+              }
+              if (nextAmt > 0.006) {
+                std.emissive.setHex(goldEmissive);
+                std.emissiveIntensity = (mesh.userData.hoverOrigEmissiveIntensity ?? 0) + nextAmt * pulse;
+              } else {
+                std.emissive.setHex(mesh.userData.hoverOrigEmissiveHex);
+                std.emissiveIntensity = mesh.userData.hoverOrigEmissiveIntensity ?? 0;
+              }
+            }
+          });
+        }
+
+        if (!isCurrent && nextAmt < 0.006) {
+          obj.userData.hoverAmt = 0;
+          if (origScale) obj.scale.copy(origScale);
+          this.hoveredAnimatingSet.delete(obj);
+        }
+      });
+    }
+
+    // Gentle breathing pulse & rotation on walkable floor teleport reticle
+    if (this.floorReticle.visible) {
+      const reticlePulse = 1 + Math.sin(elapsed * 5.5) * 0.09;
+      this.floorReticle.scale.setScalar(reticlePulse);
+      this.floorReticle.rotation.z = elapsed * 1.4;
     }
 
     this.renderer.render(this.scene, this.camera);

@@ -336,14 +336,16 @@ export default function App() {
       {/* Dedicated WebGL 3D Airport Viewport Container */}
       <div
         ref={canvasHostRef}
-        className={`fixed inset-0 top-16 z-0 ${viewMode === 'directory' ? 'invisible pointer-events-none' : 'visible'}`}
+        className={`fixed inset-0 z-0 ${viewMode === 'directory' ? 'invisible pointer-events-none' : 'visible'}`}
       />
 
       {/* WebGL Context Lost / Unavailable Graceful Fallback */}
       {webglFallback && viewMode === '3d' && (
-        <div className="fixed inset-0 top-16 z-10 bg-[#323232] text-[#F5F3EE] flex flex-col items-center justify-center p-6 text-center">
-          <h2 className="font-charm text-2xl sm:text-3xl font-bold text-[#FFDB00]">
-            {lang === 'id' ? 'Mode Direktori 2D Tersedia' : '2D Directory Fallback Available'}
+        <div className="fixed inset-0 z-10 bg-[#323232] text-[#F5F3EE] flex flex-col items-center justify-center p-6 text-center">
+          <h2 className="font-charm text-2xl sm:text-3xl font-bold text-[#F5F3EE]">
+            <span className="marker-highlight-full">
+              {lang === 'id' ? 'Mode Direktori 2D Tersedia' : '2D Directory Fallback Available'}
+            </span>
           </h2>
           <p className="text-sm text-[#D6D3CB] mt-2 max-w-md">
             {lang === 'id'
@@ -367,7 +369,9 @@ export default function App() {
           {zoneToast && !introPlaying && !inspectedTarget && !tocModalOpen && !serverRackModalOpen && (
             <div className="fixed top-20 left-1/2 -translate-x-1/2 z-20 max-w-[92vw] pointer-events-none">
               <div className="bg-[#323232]/96 text-[#F5F3EE] text-xs sm:text-sm font-medium px-4 py-2 rounded-lg border border-[#FFDB00]/45 shadow-lg text-center">
-                {zoneToast}
+                <span key={zoneToast} className="marker-highlight-multiline">
+                  {zoneToast}
+                </span>
               </div>
             </div>
           )}
@@ -395,16 +399,23 @@ export default function App() {
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3 px-4 text-center">
               <div className="bg-[#323232]/95 text-[#F5F3EE] px-6 py-4 rounded-xl border border-[#FFDB00]/45 shadow-2xl max-w-xl w-full">
                 <div className="font-mono-tech text-[11px] text-[#FFDB00] tracking-wider">
-                  Walk-In ElBan · Virtual Airport Site Visit
+                  <span className="marker-highlight-underline">
+                    Walk-In ElBan · Virtual Airport Site Visit
+                  </span>
                 </div>
-                <div className="font-charm text-xl sm:text-2xl font-bold text-white mt-1 leading-snug">
-                  {lang === 'id'
-                    ? 'Jelajahi 9 Zona Terminal & Bedah 6 Sistem Elektronika Bandara'
-                    : 'Explore 9 Terminal Zones & Dissect 6 Airport Electronics Systems'}
+                <div className="font-charm text-xl sm:text-2xl font-bold text-white mt-1.5 leading-snug">
+                  <span className="marker-highlight-multiline marker-delay-1">
+                    {lang === 'id'
+                      ? 'Jelajahi 9 Zona Terminal & Bedah 6 Sistem Elektronika Bandara'
+                      : 'Explore 9 Terminal Zones & Dissect 6 Airport Electronics Systems'}
+                  </span>
                 </div>
-                <div className="text-sm text-[#D6D3CB] mt-1.5">
-                  {lang === 'id' ? 'Menjelajahi: ' : 'Exploring: '}
-                  <span className="text-[#FFDB00] font-semibold">
+                <div className="text-sm text-[#D6D3CB] mt-2">
+                  <span>{lang === 'id' ? 'Menjelajahi: ' : 'Exploring: '}</span>
+                  <span
+                    key={introTourZoneId}
+                    className="marker-highlight font-bold"
+                  >
                     {lang === 'id'
                       ? ZONE_MAP[introTourZoneId]?.name_id
                       : ZONE_MAP[introTourZoneId]?.name_en}
@@ -451,7 +462,9 @@ export default function App() {
                         </span>
                       </div>
                       <div className="font-charm text-base font-bold text-white mt-0.5">
-                        {meta ? (lang === 'id' ? meta.name_id : meta.name_en) : ''}
+                        <span key={hoverTelemetry.lightSwitchCircuitId} className="marker-highlight-multiline">
+                          {meta ? (lang === 'id' ? meta.name_id : meta.name_en) : ''}
+                        </span>
                       </div>
                       <div className="text-xs text-[#D6D3CB] mt-1 flex items-center gap-1">
                         <MousePointerClick className="w-3.5 h-3.5 text-[#FFDB00]" />
@@ -474,7 +487,9 @@ export default function App() {
                     Zona 07 · Rak Server 42U
                   </div>
                   <div className="font-charm text-base font-bold text-white mt-0.5">
-                    42U Network Rack Digital Twin
+                    <span key="rack-twin-hover" className="marker-highlight-multiline">
+                      42U Network Rack Digital Twin
+                    </span>
                   </div>
                   <div className="text-xs text-[#D6D3CB] mt-0.5">
                     MikroTik CRS326 · CCR2004 · KVM 18.5&quot; · Dell R360 · APC 3000VA · PDU
@@ -494,7 +509,9 @@ export default function App() {
                     Zona 09 · Ruang TOC
                   </div>
                   <div className="font-charm text-base font-bold text-white mt-0.5">
-                    {lang === 'id' ? 'Meja Evaluasi & Logbook TOC' : 'TOC Evaluation & Logbook Desk'}
+                    <span key="toc-console-hover" className="marker-highlight-multiline">
+                      {lang === 'id' ? 'Meja Evaluasi & Logbook TOC' : 'TOC Evaluation & Logbook Desk'}
+                    </span>
                   </div>
                   <div className="text-xs text-[#D6D3CB] mt-1 flex items-center gap-1">
                     <MousePointerClick className="w-3.5 h-3.5 text-[#FFDB00]" />
@@ -517,9 +534,14 @@ export default function App() {
                       )}
                     </div>
                     <div className="font-charm text-base font-bold text-white mt-0.5 leading-snug">
-                      {hoverComponent
-                        ? lang === 'id' ? hoverComponent.name_id : hoverComponent.name_en
-                        : lang === 'id' ? hoverSystem.name_id : hoverSystem.name_en}
+                      <span
+                        key={hoverComponent ? hoverComponent.id : hoverSystem.id}
+                        className="marker-highlight-multiline"
+                      >
+                        {hoverComponent
+                          ? lang === 'id' ? hoverComponent.name_id : hoverComponent.name_en
+                          : lang === 'id' ? hoverSystem.name_id : hoverSystem.name_en}
+                      </span>
                     </div>
                     {hoverComponent && (
                       <div className="text-xs text-[#D6D3CB] mt-0.5">

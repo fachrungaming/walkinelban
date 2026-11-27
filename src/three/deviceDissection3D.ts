@@ -35,6 +35,14 @@ export interface CeilingSpeakerAnimHandle {
   spiderPart: BuiltDissectionPart;
 }
 
+export interface ColumnSpeakerAnimHandle {
+  tweeterPart: BuiltDissectionPart;
+  fullRangePart: BuiltDissectionPart;
+  grillePart: BuiltDissectionPart;
+  waveGroup: THREE.Group;
+  waveArcs: THREE.Mesh[];
+}
+
 export interface BuiltDissectionModel {
   root: THREE.Group;
   parts: BuiltDissectionPart[];
@@ -42,6 +50,7 @@ export interface BuiltDissectionModel {
   wiresGroup: THREE.Group;
   streams: DissectionSignalStream[];
   ceilingAnim?: CeilingSpeakerAnimHandle;
+  columnAnim?: ColumnSpeakerAnimHandle;
   dispose: () => void;
 }
 
@@ -242,6 +251,169 @@ function makeSpiderTexture(anisotropy = 4): THREE.CanvasTexture {
         rg.addColorStop(1, 'rgba(254, 240, 138, 0.32)');
         ctx.fillStyle = rg;
         ctx.fillRect(0, y, w, 26);
+      }
+    },
+    anisotropy
+  );
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function makeWhitePerforatedGrilleTexture(anisotropy = 4): THREE.CanvasTexture {
+  return makeCanvasTexture(
+    512,
+    1024,
+    (ctx, w, h) => {
+      // Satin anodized white-silver metallic surface
+      const bg = ctx.createLinearGradient(0, 0, w, 0);
+      bg.addColorStop(0, '#d6dce3');
+      bg.addColorStop(0.25, '#f1f5f9');
+      bg.addColorStop(0.5, '#f8fafc');
+      bg.addColorStop(0.75, '#e2e8f0');
+      bg.addColorStop(1, '#cbd5e1');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      // Dense staggered hexagonal acoustic perforations
+      const stepX = 11;
+      const stepY = 9.5;
+      let row = 0;
+      for (let y = 26; y < h - 26; y += stepY) {
+        const offsetX = (row % 2) * (stepX * 0.5);
+        for (let x = 22 + offsetX; x < w - 22; x += stepX) {
+          ctx.fillStyle = '#334155';
+          ctx.beginPath();
+          ctx.arc(x, y, 3.1, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(x + 0.4, y + 0.4, 2.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        row++;
+      }
+
+      // Clean metallic edge border
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 18;
+      ctx.strokeRect(9, 9, w - 18, h - 18);
+
+      // Subtle bottom brand badge (ELBAN PAS)
+      const bw = 148;
+      const bh = 38;
+      const bx = (w - bw) / 2;
+      const by = h - 122;
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ELBAN · PAS', w / 2, by + bh / 2 + 1);
+    },
+    anisotropy
+  );
+}
+
+function makeAcousticWoolTexture(anisotropy = 4): THREE.CanvasTexture {
+  const tex = makeCanvasTexture(
+    512,
+    512,
+    (ctx, w, h) => {
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fillRect(0, 0, w, h);
+
+      // Soft cloudy cotton/polyester fiber depth
+      for (let i = 0; i < 160; i++) {
+        const cx = ((i * 73) % w);
+        const cy = ((i * 137) % h);
+        const r = 24 + ((i * 29) % 44);
+        const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, r);
+        const bright = i % 2 === 0;
+        g.addColorStop(0, bright ? 'rgba(255,255,255,0.45)' : 'rgba(148,163,184,0.22)');
+        g.addColorStop(1, 'rgba(226,232,240,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Fine overlapping synthetic wool fibers
+      ctx.lineWidth = 1.1;
+      for (let i = 0; i < 650; i++) {
+        const x1 = ((i * 97) % w);
+        const y1 = ((i * 151) % h);
+        const ang = (i * 1.7) % (Math.PI * 2);
+        const len = 14 + (i % 24);
+        ctx.strokeStyle = i % 3 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(148,163,184,0.28)';
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(
+          x1 + Math.cos(ang + 0.4) * len * 0.5,
+          y1 + Math.sin(ang + 0.4) * len * 0.5,
+          x1 + Math.cos(ang) * len,
+          y1 + Math.sin(ang) * len
+        );
+        ctx.stroke();
+      }
+    },
+    anisotropy
+  );
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function makeTrafoTapeTexture(anisotropy = 4): THREE.CanvasTexture {
+  const tex = makeCanvasTexture(
+    256,
+    256,
+    (ctx, w, h) => {
+      const bg = ctx.createLinearGradient(0, 0, w, h);
+      bg.addColorStop(0, '#facc15');
+      bg.addColorStop(0.4, '#fde047');
+      bg.addColorStop(0.75, '#eab308');
+      bg.addColorStop(1, '#ca8a04');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      // Subtle overlapping Kapton/Mylar insulation tape bands
+      for (let y = 0; y < h; y += 22) {
+        ctx.fillStyle = 'rgba(161, 98, 7, 0.22)';
+        ctx.fillRect(0, y, w, 2);
+        ctx.fillStyle = 'rgba(254, 249, 195, 0.35)';
+        ctx.fillRect(0, y + 2, w, 3);
+      }
+    },
+    anisotropy
+  );
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function makeLaminatedSteelTexture(anisotropy = 4): THREE.CanvasTexture {
+  const tex = makeCanvasTexture(
+    256,
+    256,
+    (ctx, w, h) => {
+      const bg = ctx.createLinearGradient(0, 0, w, 0);
+      bg.addColorStop(0, '#94a3b8');
+      bg.addColorStop(0.5, '#cbd5e1');
+      bg.addColorStop(1, '#64748b');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      // Crisp stacked silicon-steel E-I lamination sheets
+      for (let x = 0; x < w; x += 6) {
+        ctx.fillStyle = 'rgba(30, 41, 59, 0.36)';
+        ctx.fillRect(x, 0, 1.5, h);
+        ctx.fillStyle = 'rgba(248, 250, 252, 0.3)';
+        ctx.fillRect(x + 2, 0, 1.2, h);
       }
     },
     anisotropy
@@ -462,6 +634,7 @@ export function createDissectionSceneModel(
   const streams: DissectionSignalStream[] = [];
   const textures: THREE.Texture[] = [];
   let ceilingAnim: CeilingSpeakerAnimHandle | undefined;
+  let columnAnim: ColumnSpeakerAnimHandle | undefined;
 
   const createPartContainer = (spec: DissectionPartSpec): THREE.Group => {
     const g = new THREE.Group();
@@ -1269,6 +1442,574 @@ export function createDissectionSceneModel(
         0.58
       )
     );
+  } else if (kind === 'pas_column') {
+    // ==================== BEDAH INTERNAL COLUMN SPEAKER (SPEAKER KOLOM 100V) ====================
+    const whiteGrilleTex = makeWhitePerforatedGrilleTexture(maxAnisotropy);
+    const woolTex = makeAcousticWoolTexture(maxAnisotropy);
+    const trafoTapeTex = makeTrafoTapeTexture(maxAnisotropy);
+    const lamSteelTex = makeLaminatedSteelTexture(maxAnisotropy);
+    const copperCoilTex = makeCopperWindingTexture(maxAnisotropy);
+    const crossoverPcbTex = makePcbTexture('CROSSOVER 2-WAY', '#facc15', maxAnisotropy);
+    textures.push(whiteGrilleTex, woolTex, trafoTapeTex, lamSteelTex, copperCoilTex, crossoverPcbTex);
+
+    const alumCasingMat = new THREE.MeshStandardMaterial({
+      color: 0xe6e9ee,
+      roughness: 0.34,
+      metalness: 0.42,
+    });
+    const alumTrimMat = new THREE.MeshStandardMaterial({
+      color: 0xd5dbe3,
+      roughness: 0.28,
+      metalness: 0.58,
+    });
+    const alumInnerMat = new THREE.MeshStandardMaterial({
+      color: 0xbac3cf,
+      roughness: 0.42,
+      metalness: 0.48,
+    });
+    const grilleMeshMat = new THREE.MeshStandardMaterial({
+      map: whiteGrilleTex,
+      roughness: 0.36,
+      metalness: 0.52,
+    });
+    const blackFrameMat = new THREE.MeshStandardMaterial({
+      color: 0x181c22,
+      roughness: 0.48,
+      metalness: 0.22,
+    });
+    const rubberSurroundMat = new THREE.MeshStandardMaterial({
+      color: 0x0f1217,
+      roughness: 0.78,
+      metalness: 0.08,
+    });
+    const coneFaceMat = new THREE.MeshStandardMaterial({
+      color: 0x2b313b,
+      roughness: 0.68,
+      metalness: 0.14,
+      side: THREE.DoubleSide,
+    });
+    const dustCapMat = new THREE.MeshStandardMaterial({
+      color: 0x161a21,
+      roughness: 0.34,
+      metalness: 0.26,
+    });
+    const basketSilverMat = new THREE.MeshStandardMaterial({
+      color: 0x9ca3af,
+      roughness: 0.3,
+      metalness: 0.84,
+    });
+    const magnetDarkMat = new THREE.MeshStandardMaterial({
+      color: 0x374151,
+      roughness: 0.42,
+      metalness: 0.64,
+    });
+    const woolMat = new THREE.MeshStandardMaterial({
+      map: woolTex,
+      color: 0xf4f5f7,
+      roughness: 0.94,
+      metalness: 0.0,
+    });
+    const trafoSteelMat = new THREE.MeshStandardMaterial({
+      map: lamSteelTex,
+      color: 0xd1d5db,
+      roughness: 0.3,
+      metalness: 0.84,
+    });
+    const trafoBobbinMat = new THREE.MeshStandardMaterial({
+      map: trafoTapeTex,
+      roughness: 0.28,
+      metalness: 0.14,
+    });
+    const woundCopperMat = new THREE.MeshStandardMaterial({
+      map: copperCoilTex,
+      roughness: 0.24,
+      metalness: 0.88,
+    });
+    const redWireMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.42, metalness: 0.1 });
+    const blkWireMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.46, metalness: 0.1 });
+    const whtWireMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.44, metalness: 0.08 });
+
+    // Helper: LatheGeometry oriented to face +Z
+    const makeForwardLathe = (pts: THREE.Vector2[], seg = 40): THREE.LatheGeometry => {
+      const geo = new THREE.LatheGeometry(pts, seg);
+      geo.rotateX(Math.PI / 2);
+      return geo;
+    };
+
+    // ==================== #01: GRILLE DEPAN (CURVED PERFORATED FRONT GRILLE) ====================
+    const g1 = createPartContainer(blueprint.parts[0]);
+    g1.position.set(-0.255, 0.95, 0.245);
+    g1.rotation.y = -0.06;
+
+    // Gently arched vertical perforated grille plate
+    const grilleFront = new THREE.Mesh(new THREE.BoxGeometry(0.41, 1.7, 0.022), grilleMeshMat);
+    grilleFront.castShadow = true;
+    grilleFront.receiveShadow = true;
+    g1.add(grilleFront);
+    // Molded white-silver top & bottom end caps + slender vertical side rails
+    addBox(g1, 0.43, 0.044, 0.056, alumCasingMat, 0, 0.865, -0.01);
+    addBox(g1, 0.43, 0.044, 0.056, alumCasingMat, 0, -0.865, -0.01);
+    addBox(g1, 0.018, 1.72, 0.04, alumTrimMat, -0.205, 0, -0.008);
+    addBox(g1, 0.018, 1.72, 0.04, alumTrimMat, 0.205, 0, -0.008);
+    // Raised subtle dark metallic logo badge at bottom front
+    addBox(g1, 0.115, 0.032, 0.008, darkSteel, 0, -0.66, 0.014);
+    registerPart(blueprint.parts[0], g1);
+
+    // ==================== #02: CASING ALUMINIUM (EXTRUDED CUTAWAY CABINET) ====================
+    const g2 = createPartContainer(blueprint.parts[1]);
+    g2.position.set(0, 0.95, -0.01);
+
+    // Top extruded aluminum cap with corner mounting screw recesses
+    addBox(g2, 0.44, 0.034, 0.41, alumCasingMat, 0, 0.875, 0);
+    addBox(g2, 0.41, 0.014, 0.37, alumInnerMat, 0, 0.854, 0);
+    addCyl(g2, 0.009, 0.009, 0.012, 12, darkSteel, -0.175, 0.858, 0.165, Math.PI / 2);
+    addCyl(g2, 0.009, 0.009, 0.012, 12, darkSteel, 0.175, 0.858, 0.165, Math.PI / 2);
+
+    // Bottom extruded aluminum base plate with stepped lip
+    addBox(g2, 0.44, 0.034, 0.41, alumCasingMat, 0, -0.875, 0);
+    addBox(g2, 0.41, 0.014, 0.37, alumInnerMat, 0, -0.854, 0);
+
+    // Left full side wall + Rear full wall (Right flank stays cleanly open for cutaway inspection!)
+    addBox(g2, 0.022, 1.74, 0.38, alumCasingMat, -0.205, 0, 0);
+    addBox(g2, 0.42, 1.74, 0.022, alumCasingMat, 0, 0, -0.185);
+    // Rear-right aluminum extrusion spine & front-left baffle rail framing the cutaway
+    addBox(g2, 0.024, 1.74, 0.032, alumTrimMat, 0.204, 0, -0.176);
+    addBox(g2, 0.024, 1.74, 0.028, alumTrimMat, -0.204, 0, 0.176);
+    // Front internal speaker baffle mounting flange strips on left
+    addBox(g2, 0.016, 1.4, 0.018, alumInnerMat, -0.182, 0.15, 0.12);
+    registerPart(blueprint.parts[1], g2);
+
+    // ==================== #03: TWEETER (UPPER HIGH-FREQUENCY DOME DRIVER) ====================
+    const g3 = createPartContainer(blueprint.parts[2]);
+    g3.position.set(-0.01, 1.66, 0.065);
+
+    // Square matte-black flanged tweeter faceplate (4 corner screws)
+    addBox(g3, 0.205, 0.205, 0.02, blackFrameMat, 0, 0, 0.052);
+    for (const sx of [-0.082, 0.082]) {
+      for (const sy of [-0.082, 0.082]) {
+        addCyl(g3, 0.009, 0.009, 0.008, 12, brushedAlum, sx, sy, 0.064, Math.PI / 2);
+      }
+    }
+    // Waveguide trim ring & satin soft-dome diaphragm
+    const twTrim = new THREE.Mesh(new THREE.TorusGeometry(0.064, 0.012, 12, 32), rubberSurroundMat);
+    twTrim.position.set(0, 0, 0.062);
+    g3.add(twTrim);
+    const twDome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.044, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.48),
+      dustCapMat
+    );
+    twDome.rotation.x = Math.PI / 2;
+    twDome.position.set(0, 0, 0.048);
+    g3.add(twDome);
+    // Rear cylindrical magnet motor + brushed steel end cap
+    addCyl(g3, 0.062, 0.062, 0.068, 28, basketSilverMat, 0, 0, 0.006, Math.PI / 2);
+    addCyl(g3, 0.056, 0.056, 0.036, 28, magnetDarkMat, 0, 0, -0.044, Math.PI / 2);
+    addCyl(g3, 0.058, 0.058, 0.012, 28, brushedAlum, 0, 0, -0.066, Math.PI / 2);
+    registerPart(blueprint.parts[2], g3);
+
+    // ==================== #04: SPEAKER FULL-RANGE (×4 LINE-ARRAY) ====================
+    const g4 = createPartContainer(blueprint.parts[3]);
+    g4.position.set(-0.01, 0.94, 0.065);
+
+    const coneProfile = [
+      new THREE.Vector2(0.036, -0.025),
+      new THREE.Vector2(0.058, -0.004),
+      new THREE.Vector2(0.088, 0.02),
+      new THREE.Vector2(0.112, 0.042),
+    ];
+    const sharedConeGeo = makeForwardLathe(coneProfile, 40);
+    const driverOffsetsY = [0.42, 0.14, -0.14, -0.42]; // World Y: 1.36, 1.08, 0.80, 0.52
+
+    driverOffsetsY.forEach((dy) => {
+      const drv = new THREE.Group();
+      drv.position.set(0, dy, 0);
+
+      // Matte-black circular mounting frame + 4 corner screw tabs
+      const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.122, 0.012, 12, 36), blackFrameMat);
+      bezel.position.set(0, 0, 0.052);
+      drv.add(bezel);
+      for (const sx of [-0.098, 0.098]) {
+        for (const sy of [-0.098, 0.098]) {
+          addBox(drv, 0.036, 0.036, 0.014, blackFrameMat, sx, sy, 0.05);
+          addCyl(drv, 0.008, 0.008, 0.01, 10, brushedAlum, sx, sy, 0.059, Math.PI / 2);
+        }
+      }
+
+      // Half-roll black rubber surround
+      const surround = new THREE.Mesh(new THREE.TorusGeometry(0.108, 0.011, 12, 36), rubberSurroundMat);
+      surround.position.set(0, 0, 0.052);
+      drv.add(surround);
+
+      // Concave matte acoustic cone + satin convex center dust cap
+      const cone = new THREE.Mesh(sharedConeGeo, coneFaceMat);
+      cone.position.set(0, 0, 0.012);
+      cone.castShadow = true;
+      drv.add(cone);
+
+      const dustCap = new THREE.Mesh(
+        new THREE.SphereGeometry(0.039, 22, 14, 0, Math.PI * 2, 0, Math.PI * 0.48),
+        dustCapMat
+      );
+      dustCap.rotation.x = Math.PI / 2;
+      dustCap.position.set(0, 0, 0.002);
+      drv.add(dustCap);
+
+      // Stamped steel rear basket (front collar, rear collar & 4 tapered radial struts)
+      const basketBackRing = new THREE.Mesh(new THREE.TorusGeometry(0.068, 0.008, 10, 28), basketSilverMat);
+      basketBackRing.position.set(0, 0, -0.025);
+      drv.add(basketBackRing);
+      for (let s = 0; s < 4; s++) {
+        const a = (s / 4) * Math.PI * 2 + Math.PI / 4;
+        const strutCurve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(Math.cos(a) * 0.114, Math.sin(a) * 0.114, 0.044),
+          new THREE.Vector3(Math.cos(a) * 0.09, Math.sin(a) * 0.09, 0.008),
+          new THREE.Vector3(Math.cos(a) * 0.068, Math.sin(a) * 0.068, -0.026),
+        ]);
+        const strut = new THREE.Mesh(new THREE.TubeGeometry(strutCurve, 10, 0.0085, 6, false), basketSilverMat);
+        drv.add(strut);
+      }
+
+      // Warm copper voice-coil neck visible behind basket
+      addCyl(drv, 0.044, 0.044, 0.036, 24, woundCopperMat, 0, 0, -0.018, Math.PI / 2);
+      // Ferrite ring magnet + brushed steel rear pole plate
+      addCyl(drv, 0.072, 0.072, 0.042, 28, magnetDarkMat, 0, 0, -0.05, Math.PI / 2);
+      addCyl(drv, 0.066, 0.066, 0.012, 28, brushedAlum, 0, 0, -0.075, Math.PI / 2);
+      // Small rear solder terminal tab on bottom-right of basket
+      addBox(drv, 0.024, 0.014, 0.012, ceramicMat, 0.074, -0.042, -0.028);
+
+      g4.add(drv);
+    });
+    registerPart(blueprint.parts[3], g4);
+
+    // ==================== #05: BAHAN PEREDAM (ACOUSTIC DAMPING WOOL) ====================
+    const g5 = createPartContainer(blueprint.parts[4]);
+    g5.position.set(-0.01, 1.09, -0.115);
+
+    // Base fibrous acoustic batting slab lining rear chamber wall above lower partition
+    addBox(g5, 0.34, 1.38, 0.075, woolMat, 0, 0, 0);
+    // Layered organic cotton/dacron tufts for authentic fluffy acoustic wool silhouette
+    const tuftPositions: Array<[number, number, number, number, number, number]> = [
+      [-0.08, 0.56, 0.032, 0.11, 0.13, 0.045],
+      [0.07, 0.52, 0.036, 0.105, 0.14, 0.048],
+      [-0.06, 0.34, 0.038, 0.12, 0.14, 0.048],
+      [0.08, 0.28, 0.032, 0.1, 0.13, 0.045],
+      [-0.09, 0.1, 0.034, 0.115, 0.15, 0.048],
+      [0.07, 0.06, 0.036, 0.11, 0.14, 0.046],
+      [-0.07, -0.14, 0.038, 0.12, 0.15, 0.048],
+      [0.08, -0.18, 0.032, 0.105, 0.14, 0.046],
+      [-0.08, -0.38, 0.034, 0.115, 0.14, 0.048],
+      [0.06, -0.44, 0.03, 0.1, 0.12, 0.042],
+      [-0.04, -0.58, 0.032, 0.12, 0.11, 0.044],
+      [0.08, -0.6, 0.028, 0.09, 0.1, 0.038],
+    ];
+    const tuftGeo = new THREE.SphereGeometry(1, 16, 12);
+    tuftPositions.forEach(([tx, ty, tz, sx, sy, sz]) => {
+      const tuft = new THREE.Mesh(tuftGeo, woolMat);
+      tuft.position.set(tx, ty, tz);
+      tuft.scale.set(sx, sy, sz);
+      g5.add(tuft);
+    });
+    registerPart(blueprint.parts[4], g5);
+
+    // ==================== #06: SISTEM CROSSOVER (PASSIVE CROSSOVER PCB) ====================
+    const g6 = createPartContainer(blueprint.parts[5]);
+    g6.position.set(0.088, 0.56, -0.042);
+
+    // Vertical green PCB board mounted behind lower full-range driver
+    const pcbBoard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.115, 0.165, 0.014),
+      new THREE.MeshStandardMaterial({ map: crossoverPcbTex, roughness: 0.42, metalness: 0.18 })
+    );
+    pcbBoard.rotation.y = 0.22;
+    pcbBoard.castShadow = true;
+    g6.add(pcbBoard);
+
+    const pcbSub = new THREE.Group();
+    pcbSub.rotation.y = 0.22;
+    g6.add(pcbSub);
+
+    // 4 brass PCB corner mounting standoffs
+    for (const px of [-0.046, 0.046]) {
+      for (const py of [-0.07, 0.07]) {
+        addCyl(pcbSub, 0.006, 0.006, 0.014, 10, copperMat, px, py, 0.008, Math.PI / 2);
+      }
+    }
+    // 2× Shiny copper-wound cylindrical inductor coils
+    addCyl(pcbSub, 0.02, 0.02, 0.056, 20, woundCopperMat, 0.024, 0.024, 0.034);
+    addCyl(pcbSub, 0.023, 0.023, 0.006, 20, blackFrameMat, 0.024, 0.052, 0.034);
+    addCyl(pcbSub, 0.023, 0.023, 0.006, 20, blackFrameMat, 0.024, -0.004, 0.034);
+
+    addCyl(pcbSub, 0.017, 0.017, 0.046, 20, woundCopperMat, -0.022, 0.03, 0.03);
+    addCyl(pcbSub, 0.02, 0.02, 0.005, 20, blackFrameMat, -0.022, 0.053, 0.03);
+    addCyl(pcbSub, 0.02, 0.02, 0.005, 20, blackFrameMat, -0.022, 0.007, 0.03);
+
+    // 2× Black upright electrolytic capacitors with silver vent caps
+    addCyl(pcbSub, 0.012, 0.012, 0.038, 16, blackFrameMat, -0.036, -0.02, 0.025);
+    addCyl(pcbSub, 0.011, 0.011, 0.004, 16, brushedAlum, -0.036, -0.001, 0.025);
+    addCyl(pcbSub, 0.011, 0.011, 0.032, 16, blackFrameMat, -0.008, -0.024, 0.024);
+    addCyl(pcbSub, 0.01, 0.01, 0.004, 16, brushedAlum, -0.008, -0.008, 0.024);
+
+    // White ceramic cement power resistor block
+    addBox(pcbSub, 0.044, 0.016, 0.016, ceramicMat, 0.022, -0.026, 0.018);
+
+    // White 4-pin JST wire connector header at bottom edge
+    addBox(pcbSub, 0.052, 0.022, 0.024, ceramicMat, 0.005, -0.064, 0.02);
+    registerPart(blueprint.parts[5], g6);
+
+    // ==================== #07: SEKAT INTERNAL (ACOUSTIC PARTITION SHELVES) ====================
+    const g7 = createPartContainer(blueprint.parts[6]);
+    g7.position.set(0, 0.36, -0.01);
+
+    // Main Lower Internal Partition isolating driver chamber from 100V Transformer bay
+    addBox(g7, 0.395, 0.016, 0.355, alumCasingMat, 0, 0, 0);
+    // Rubber cable pass-through grommet ring on lower partition
+    const grommet = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.006, 10, 20), blackFrameMat);
+    grommet.rotation.x = Math.PI / 2;
+    grommet.position.set(0.065, 0.008, -0.02);
+    g7.add(grommet);
+
+    // Upper Internal Divider Shelf separating the Tweeter bay from the 4× Full-Range array
+    addBox(g7, 0.385, 0.014, 0.32, alumCasingMat, -0.005, 1.155, 0.012);
+    registerPart(blueprint.parts[6], g7);
+
+    // ==================== #08: TRANSFORMATOR MATCHING (100V LINE) ====================
+    const g8 = createPartContainer(blueprint.parts[7]);
+    g8.position.set(-0.045, 0.21, 0.01);
+
+    // Bolted steel L-foot mounting base resting on cabinet floor
+    addBox(g8, 0.225, 0.012, 0.165, brushedAlum, 0, -0.102, 0);
+    for (const bx of [-0.095, 0.095]) {
+      for (const bz of [-0.062, 0.062]) {
+        addCyl(g8, 0.008, 0.008, 0.01, 6, darkSteel, bx, -0.092, bz);
+      }
+    }
+    // Laminated E-I Silicon-Steel Core outer frame (top, bottom, left, right stacks)
+    addBox(g8, 0.185, 0.036, 0.138, trafoSteelMat, 0, 0.072, 0);
+    addBox(g8, 0.185, 0.036, 0.138, trafoSteelMat, 0, -0.072, 0);
+    addBox(g8, 0.038, 0.18, 0.138, trafoSteelMat, -0.074, 0, 0);
+    addBox(g8, 0.038, 0.18, 0.138, trafoSteelMat, 0.074, 0, 0);
+    // Steel side clamping strap around laminated core
+    addBox(g8, 0.192, 0.016, 0.026, brushedAlum, 0, 0.094, 0);
+    addBox(g8, 0.012, 0.194, 0.026, brushedAlum, -0.096, 0, 0);
+    addBox(g8, 0.012, 0.194, 0.026, brushedAlum, 0.096, 0, 0);
+    // Golden-yellow Kapton/Mylar tape-wrapped bobbin winding protruding through core window
+    addBox(g8, 0.112, 0.118, 0.172, trafoBobbinMat, 0, 0, 0);
+    // Subtle dark insulating bobbin flange lips
+    addBox(g8, 0.118, 0.124, 0.008, blackFrameMat, 0, 0, 0.072);
+    addBox(g8, 0.118, 0.124, 0.008, blackFrameMat, 0, 0, -0.072);
+    registerPart(blueprint.parts[7], g8);
+
+    // ==================== #09: TERMINAL INPUT & SELEKTOR DAYA ====================
+    const g9 = createPartContainer(blueprint.parts[8]);
+    g9.position.set(0.088, 0.215, -0.145);
+
+    // Black molded flame-retardant input terminal housing
+    addBox(g9, 0.118, 0.135, 0.052, blackFrameMat, 0, 0, 0);
+    // Red (+) & Black (-) binding posts on front/inner face
+    addCyl(g9, 0.014, 0.014, 0.028, 16, redWireMat, -0.026, 0.026, 0.034, Math.PI / 2);
+    addCyl(g9, 0.007, 0.007, 0.036, 12, copperMat, -0.026, 0.026, 0.038, Math.PI / 2);
+    addCyl(g9, 0.014, 0.014, 0.028, 16, darkSteel, -0.026, -0.026, 0.034, Math.PI / 2);
+    addCyl(g9, 0.007, 0.007, 0.036, 12, brushedAlum, -0.026, -0.026, 0.038, Math.PI / 2);
+    // Rotary / tap power wattage selector (20W / 10W / 5W / COM)
+    addCyl(g9, 0.022, 0.022, 0.018, 18, darkSteel, 0.026, 0.004, 0.03, Math.PI / 2);
+    addBox(g9, 0.006, 0.026, 0.008, ceramicMat, 0.026, 0.004, 0.041);
+    // Corner mounting screws
+    for (const tx of [-0.048, 0.048]) {
+      for (const ty of [-0.056, 0.056]) {
+        addCyl(g9, 0.006, 0.006, 0.008, 10, brushedAlum, tx, ty, 0.028, Math.PI / 2);
+      }
+    }
+    registerPart(blueprint.parts[8], g9);
+
+    // ==================== #10: KABEL INTERNAL & BRACKET DINDING ====================
+    const g10 = createPartContainer(blueprint.parts[9]);
+    g10.position.set(0, 0, 0);
+
+    // Heavy-duty brushed aluminum Wall Mounting Brackets (lower & upper rear exterior)
+    const addWallBracket = (by: number) => {
+      const brk = new THREE.Group();
+      brk.position.set(0.18, by, -0.225);
+      // Mounting flange plate extending outward
+      addBox(brk, 0.125, 0.21, 0.018, alumTrimMat, 0.03, 0, -0.02);
+      // Bend flange joining cabinet rear wall
+      addBox(brk, 0.022, 0.21, 0.075, alumTrimMat, -0.025, 0, 0.012);
+      // Slotted vertical mounting holes (visual dark pill recesses)
+      addCyl(brk, 0.011, 0.011, 0.022, 12, darkSteel, 0.058, 0.056, -0.02, Math.PI / 2);
+      addCyl(brk, 0.011, 0.011, 0.022, 12, darkSteel, 0.058, -0.056, -0.02, Math.PI / 2);
+      // Hex mounting bolts into cabinet spine
+      addCyl(brk, 0.009, 0.009, 0.016, 6, brushedAlum, -0.006, 0.056, 0.018, 0, Math.PI / 2);
+      addCyl(brk, 0.009, 0.009, 0.016, 6, brushedAlum, -0.006, -0.056, 0.018, 0, Math.PI / 2);
+      g10.add(brk);
+    };
+    addWallBracket(0.22);
+    addWallBracket(1.62);
+
+    // Realistic color-coded 3D Internal Wiring Harness (Terminal -> Trafo -> Sekat -> Crossover -> 4x FR -> Tweeter)
+    const addWireTube = (pts: THREE.Vector3[], mat: THREE.Material, rad = 0.0065) => {
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, rad, 8, false), mat);
+      mesh.castShadow = true;
+      g10.add(mesh);
+    };
+
+    // Terminal Input -> Matching Transformer (Primary 100V red & black)
+    addWireTube(
+      [
+        new THREE.Vector3(0.062, 0.24, -0.11),
+        new THREE.Vector3(0.035, 0.245, -0.055),
+        new THREE.Vector3(0.022, 0.23, 0.0),
+      ],
+      redWireMat
+    );
+    addWireTube(
+      [
+        new THREE.Vector3(0.062, 0.19, -0.11),
+        new THREE.Vector3(0.038, 0.19, -0.05),
+        new THREE.Vector3(0.022, 0.185, 0.0),
+      ],
+      blkWireMat
+    );
+
+    // Matching Transformer Secondary -> up through Lower Partition Grommet -> Crossover PCB JST Header
+    addWireTube(
+      [
+        new THREE.Vector3(0.01, 0.27, 0.02),
+        new THREE.Vector3(0.058, 0.31, -0.015),
+        new THREE.Vector3(0.064, 0.37, -0.02),
+        new THREE.Vector3(0.082, 0.44, -0.018),
+        new THREE.Vector3(0.088, 0.495, -0.022),
+      ],
+      redWireMat
+    );
+    addWireTube(
+      [
+        new THREE.Vector3(0.018, 0.255, 0.005),
+        new THREE.Vector3(0.068, 0.305, -0.022),
+        new THREE.Vector3(0.072, 0.37, -0.026),
+        new THREE.Vector3(0.095, 0.44, -0.024),
+        new THREE.Vector3(0.102, 0.495, -0.025),
+      ],
+      blkWireMat
+    );
+
+    // Crossover PCB -> Daisy-chain vertically behind 4× Full-Range Drivers -> Top Tweeter
+    addWireTube(
+      [
+        new THREE.Vector3(0.078, 0.495, -0.02),
+        new THREE.Vector3(0.062, 0.47, 0.028),
+        new THREE.Vector3(0.064, 0.52, 0.038),
+        new THREE.Vector3(0.068, 0.80, 0.038),
+        new THREE.Vector3(0.068, 1.08, 0.038),
+        new THREE.Vector3(0.068, 1.36, 0.038),
+        new THREE.Vector3(0.062, 1.52, 0.032),
+        new THREE.Vector3(0.045, 1.65, 0.035),
+      ],
+      redWireMat,
+      0.0058
+    );
+    addWireTube(
+      [
+        new THREE.Vector3(0.092, 0.495, -0.02),
+        new THREE.Vector3(0.074, 0.465, 0.024),
+        new THREE.Vector3(0.076, 0.52, 0.032),
+        new THREE.Vector3(0.078, 0.80, 0.032),
+        new THREE.Vector3(0.078, 1.08, 0.032),
+        new THREE.Vector3(0.078, 1.36, 0.032),
+        new THREE.Vector3(0.072, 1.52, 0.026),
+        new THREE.Vector3(0.052, 1.64, 0.028),
+      ],
+      blkWireMat,
+      0.0058
+    );
+    addWireTube(
+      [
+        new THREE.Vector3(0.106, 0.495, -0.022),
+        new THREE.Vector3(0.088, 0.47, 0.012),
+        new THREE.Vector3(0.085, 0.62, 0.018),
+        new THREE.Vector3(0.085, 0.94, 0.018),
+        new THREE.Vector3(0.085, 1.24, 0.018),
+        new THREE.Vector3(0.072, 1.54, 0.018),
+        new THREE.Vector3(0.048, 1.66, 0.02),
+      ],
+      whtWireMat,
+      0.005
+    );
+    registerPart(blueprint.parts[9], g10);
+
+    // ==================== LIVE SIGNAL FLOW STREAMS & LINE-ARRAY WAVEFRONTS ====================
+    // Stream 1: Cyan 100V Line input from Terminal -> Matching Transformer
+    streams.push(
+      buildSignalStream(
+        wiresGroup,
+        [
+          new THREE.Vector3(0.09, 0.22, -0.24),
+          new THREE.Vector3(0.085, 0.22, -0.13),
+          new THREE.Vector3(0.03, 0.22, -0.04),
+          new THREE.Vector3(-0.04, 0.21, 0.01),
+        ],
+        0x38bdf8,
+        3,
+        0.55
+      ),
+      // Stream 2: Amber Step-Down 8Ω signal from Trafo -> through Sekat Internal -> Crossover PCB
+      buildSignalStream(
+        wiresGroup,
+        [
+          new THREE.Vector3(-0.01, 0.25, 0.02),
+          new THREE.Vector3(0.065, 0.36, -0.02),
+          new THREE.Vector3(0.09, 0.54, -0.03),
+        ],
+        0xf59e0b,
+        3,
+        0.62
+      ),
+      // Stream 3: Emerald/Gold filtered audio rising from Crossover -> 4× Full-Range Array -> Top Tweeter
+      buildSignalStream(
+        wiresGroup,
+        [
+          new THREE.Vector3(0.085, 0.56, -0.01),
+          new THREE.Vector3(0.072, 0.52, 0.042),
+          new THREE.Vector3(0.072, 0.80, 0.042),
+          new THREE.Vector3(0.072, 1.08, 0.042),
+          new THREE.Vector3(0.072, 1.36, 0.042),
+          new THREE.Vector3(0.052, 1.66, 0.042),
+        ],
+        0x34d399,
+        6,
+        0.5
+      )
+    );
+
+    // Vertical Line-Array forward-radiating acoustic wavefront arcs (+Z)
+    const waveGroup = new THREE.Group();
+    waveGroup.position.set(0, 1.06, 0.24);
+    wiresGroup.add(waveGroup);
+
+    const waveArcs: THREE.Mesh[] = [];
+    const colWaveColors = [0xffdb00, 0x38bdf8, 0x34d399, 0xffdb00];
+    for (let w = 0; w < 4; w++) {
+      const arcMat = new THREE.MeshBasicMaterial({
+        color: colWaveColors[w],
+        transparent: true,
+        opacity: 0.65,
+      });
+      // Vertical elliptical wavefront arc representing focused horizontal line-array dispersion
+      const arcMesh = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.007, 8, 36, Math.PI * 1.15), arcMat);
+      arcMesh.rotation.z = -Math.PI * 0.575;
+      arcMesh.rotation.y = Math.PI / 2;
+      arcMesh.userData.isSignalEffect = true;
+      arcMesh.userData.arcPhase = w * 0.25;
+      waveGroup.add(arcMesh);
+      waveArcs.push(arcMesh);
+    }
+
+    columnAnim = {
+      tweeterPart: builtParts[2],
+      fullRangePart: builtParts[3],
+      grillePart: builtParts[0],
+      waveGroup,
+      waveArcs,
+    };
   } else if (kind === 'fids_kiosk') {
     // 01: Portrait 55" Industrial LCD Panel
     const g1 = createPartContainer(blueprint.parts[0]);
@@ -1570,6 +2311,7 @@ export function createDissectionSceneModel(
     wiresGroup,
     streams,
     ceilingAnim,
+    columnAnim,
     dispose: () => {
       textures.forEach((t) => t.dispose());
       root.traverse((obj) => {
@@ -1591,7 +2333,7 @@ export function applyDissectionRuntimeVisuals(
   model: BuiltDissectionModel,
   params: DissectionSimParams,
   telemetryMap: Record<string, DissectionPartTelemetry>,
-  selectedPartId: string,
+  selectedPartId: string | null,
   hoveredPartId: string | null,
   signalBlocked: boolean,
   delta: number,
@@ -1602,17 +2344,20 @@ export function applyDissectionRuntimeVisuals(
   const totalParts = model.parts.length;
   const ceilingActive =
     Boolean(model.ceilingAnim) && !signalBlocked && params.showSignalFlow && params.assemblyProgress > 0.75;
+  const columnActive =
+    Boolean(model.columnAnim) && !signalBlocked && params.showSignalFlow && params.assemblyProgress > 0.75;
   const excursionFreq = 22 + (params.workloadPercent / 100) * 14 + audioBoost * 10;
-  const excursionAmp = ceilingActive
-    ? (0.012 + (params.workloadPercent / 100) * 0.016 + audioBoost * 0.026)
-    : 0;
+  const excursionAmp =
+    ceilingActive || columnActive
+      ? 0.012 + (params.workloadPercent / 100) * 0.016 + audioBoost * 0.026
+      : 0;
   const excursionOffset = excursionAmp > 0 ? Math.sin(elapsed * excursionFreq) * excursionAmp : 0;
 
   for (let i = 0; i < totalParts; i++) {
     const bp = model.parts[i];
     const spec = bp.spec;
     const tel = telemetryMap[spec.id];
-    const isSelected = spec.id === selectedPartId;
+    const isSelected = selectedPartId !== null && spec.id === selectedPartId;
     const isHovered = spec.id === hoveredPartId;
     const isFault = tel?.status === 'FAULT';
     const isWarning = tel?.status === 'WARNING';
@@ -1631,6 +2376,7 @@ export function applyDissectionRuntimeVisuals(
     const explodeMul = params.explodedFactor + casingExtra;
 
     let extraX = 0;
+    let extraZ = 0;
     if (model.ceilingAnim && excursionOffset !== 0) {
       if (bp === model.ceilingAnim.voiceCoilPart || bp === model.ceilingAnim.conePart) {
         extraX = excursionOffset;
@@ -1638,10 +2384,22 @@ export function applyDissectionRuntimeVisuals(
         extraX = excursionOffset * 0.45;
       }
     }
+    if (model.columnAnim && excursionOffset !== 0) {
+      if (bp === model.columnAnim.fullRangePart) {
+        extraZ = excursionOffset * 0.65;
+      } else if (bp === model.columnAnim.tweeterPart) {
+        extraZ = Math.sin(elapsed * excursionFreq * 1.85) * excursionAmp * 0.35;
+      }
+    }
+
+    const prevHoverFactor = (bp.group.userData.hoverFactor as number) ?? 0;
+    const hoverFactor = THREE.MathUtils.damp(prevHoverFactor, isHovered ? 1 : 0, 13, delta);
+    bp.group.userData.hoverFactor = hoverFactor;
+    const hoverFloatY = hoverFactor * (0.015 + Math.sin(elapsed * 5.8) * 0.004);
 
     const targetX = bp.basePos.x + spec.explodeOffset[0] * explodeMul + spec.assemblyOffset[0] * invAssembly + extraX;
-    const targetY = bp.basePos.y + spec.explodeOffset[1] * explodeMul + spec.assemblyOffset[1] * invAssembly;
-    const targetZ = bp.basePos.z + spec.explodeOffset[2] * explodeMul + spec.assemblyOffset[2] * invAssembly;
+    const targetY = bp.basePos.y + spec.explodeOffset[1] * explodeMul + spec.assemblyOffset[1] * invAssembly + hoverFloatY;
+    const targetZ = bp.basePos.z + spec.explodeOffset[2] * explodeMul + spec.assemblyOffset[2] * invAssembly + extraZ;
 
     bp.group.position.x = THREE.MathUtils.damp(bp.group.position.x, targetX, lambda, delta);
     bp.group.position.y = THREE.MathUtils.damp(bp.group.position.y, targetY, lambda, delta);
@@ -1649,7 +2407,7 @@ export function applyDissectionRuntimeVisuals(
 
     const visibleScale = localAssembly < 0.02 ? 0.001 : 1;
     bp.group.visible = localAssembly > 0.01 && !(spec.isOuterCasing && params.casingDetached && params.visualMode === 'xray');
-    bp.group.scale.setScalar(visibleScale);
+    bp.group.scale.setScalar(visibleScale * (1 + hoverFactor * 0.042));
 
     // Rendering mode & Selection / Fault Emissive Highlight
     for (const mesh of bp.meshes) {
@@ -1687,11 +2445,11 @@ export function applyDissectionRuntimeVisuals(
             mat.emissive.setHex(0xef4444);
             mat.emissiveIntensity = pulse;
           } else if (isSelected) {
-            mat.emissive.setHex(0x0284c7);
-            mat.emissiveIntensity = 0.26;
+            mat.emissive.setHex(0xffdb00);
+            mat.emissiveIntensity = 0.22;
           } else if (isHovered) {
-            mat.emissive.setHex(0x38bdf8);
-            mat.emissiveIntensity = 0.16;
+            mat.emissive.setHex(0xffdb00);
+            mat.emissiveIntensity = 0.16 + Math.sin(elapsed * 6.5) * 0.05;
           } else if (isWarning) {
             mat.emissive.setHex(0xf59e0b);
             mat.emissiveIntensity = 0.18;
@@ -1780,6 +2538,28 @@ export function applyDissectionRuntimeVisuals(
         ring.scale.set(1, radiusScale, radiusScale);
         const mat = ring.material as THREE.MeshBasicMaterial;
         mat.opacity = Math.sin(phase * Math.PI) * (0.62 + audioBoost * 0.32);
+      }
+    }
+  }
+
+  // Dedicated Column Speaker Line-Array Forward Acoustic Wavefront Arcs
+  if (model.columnAnim) {
+    const canim = model.columnAnim;
+    const showColWaves = params.showSignalFlow && !signalBlocked && params.assemblyProgress > 0.72;
+    canim.waveGroup.visible = showColWaves;
+    canim.waveGroup.position.x = canim.fullRangePart.group.position.x;
+    canim.waveGroup.position.z = canim.fullRangePart.group.position.z + 0.14;
+
+    if (showColWaves) {
+      for (let w = 0; w < canim.waveArcs.length; w++) {
+        const arc = canim.waveArcs[w];
+        const phase = (elapsed * 0.72 * speedScale + (arc.userData.arcPhase as number)) % 1;
+        arc.position.z = 0.05 + phase * 0.68;
+        const horizSpread = 0.75 + phase * (1.55 + audioBoost * 0.45);
+        const vertHeight = 1.65 + phase * 0.35; // Narrow vertical, wide horizontal line-array dispersion!
+        arc.scale.set(horizSpread, vertHeight, horizSpread);
+        const mat = arc.material as THREE.MeshBasicMaterial;
+        mat.opacity = Math.sin(phase * Math.PI) * (0.52 + audioBoost * 0.38);
       }
     }
   }

@@ -194,12 +194,14 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                   ? 'TOC · Evaluasi Singkat'
                   : 'TOC · Laporan Kompetensi'}
             </div>
-            <h2 className="font-charm text-xl sm:text-2xl font-bold text-[#F5F3EE] mt-0.5">
-              {step === 1
-                ? lang === 'id' ? 'Rekap Logbook Praktikum ElBan' : 'ElBan Practical Logbook Recap'
-                : step === 2
-                  ? lang === 'id' ? 'Uji Kompetensi & Skenario Troubleshooting' : 'Competency & Troubleshooting Assessment'
-                  : lang === 'id' ? 'Hasil Evaluasi & Bukti Praktikum' : 'Assessment Result & Practical Certificate'}
+            <h2 className="font-charm text-xl sm:text-2xl font-bold text-[#F5F3EE] mt-1 leading-snug">
+              <span key={step} className="marker-highlight-full">
+                {step === 1
+                  ? lang === 'id' ? 'Rekap Logbook Praktikum ElBan' : 'ElBan Practical Logbook Recap'
+                  : step === 2
+                    ? lang === 'id' ? 'Uji Kompetensi & Skenario Troubleshooting' : 'Competency & Troubleshooting Assessment'
+                    : lang === 'id' ? 'Hasil Evaluasi & Bukti Praktikum' : 'Assessment Result & Practical Certificate'}
+              </span>
             </h2>
           </div>
 

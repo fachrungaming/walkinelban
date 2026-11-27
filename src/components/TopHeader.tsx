@@ -109,28 +109,30 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-30 h-16 border-b px-3 sm:px-6 flex items-center justify-between gap-3 shadow-md transition-colors ${
+      className={`fixed top-3.5 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100vw-1.5rem)] rounded-full border px-2.5 sm:px-3.5 py-1.5 flex flex-nowrap items-center justify-between gap-2 sm:gap-2.5 whitespace-nowrap shadow-[0_14px_38px_rgba(0,0,0,0.48)] transition-colors ${
         isNight
-          ? 'bg-[#262626]/98 border-[#FFDB00]/30 text-[#F5F3EE]'
-          : 'bg-[#323232]/98 border-[#4A4A4A] text-[#F5F3EE]'
+          ? 'bg-[#242424]/96 border-[#FFDB00]/45 ring-1 ring-[#FFDB00]/15 text-[#F5F3EE]'
+          : 'bg-[#323232]/96 border-[#525252] ring-1 ring-white/10 text-[#F5F3EE]'
       }`}
     >
       {/* Brand Zone */}
       <button
         type="button"
         onClick={() => onSetViewMode('3d')}
-        className="flex items-center gap-2.5 text-left whitespace-nowrap shrink-0 rounded-md cursor-pointer"
+        className="flex items-center gap-2 pl-0.5 pr-1.5 py-0.5 text-left whitespace-nowrap shrink-0 rounded-full hover:bg-white/5 transition-colors cursor-pointer"
       >
-        <span className="w-8 h-8 rounded-lg bg-[#FFDB00] text-[#242424] flex items-center justify-center shrink-0 shadow-xs">
+        <span className="w-8 h-8 rounded-full bg-[#FFDB00] text-[#242424] flex items-center justify-center shrink-0 shadow-sm">
           <Radar className="w-4 h-4" />
         </span>
-        <span className="font-charm text-xl sm:text-2xl font-bold text-[#FFDB00] leading-none">
-          Walk-In ElBan
+        <span className="font-charm text-lg sm:text-xl font-bold text-[#FFDB00] leading-none pr-1">
+          <span className="marker-highlight-underline">Walk-In ElBan</span>
         </span>
       </button>
 
+      <span className="hidden sm:inline-block h-5 w-px bg-[#4E4E4E] shrink-0" aria-hidden="true" />
+
       {/* Navigation & Primary Controls */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+      <div className="flex flex-nowrap items-center gap-1.5 shrink-0">
         {/* Day / Night Mode Toggle */}
         <button
           type="button"
@@ -144,7 +146,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 ? 'Switch to Day Mode (N)'
                 : 'Switch to Night Mode (N)'
           }
-          className={`h-10 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer border ${
+          className={`h-9 px-3 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer border ${
             isNight
               ? 'bg-[#FFDB00]/15 hover:bg-[#FFDB00]/25 text-[#FFDB00] border-[#FFDB00]/50'
               : 'bg-[#262626] hover:bg-[#3D3D3D] text-[#F5F3EE] border-[#4A4A4A]'
@@ -171,7 +173,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               setLightMenuOpen((v) => !v);
               setZoneMenuOpen(false);
             }}
-            className={`h-10 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer border ${
+            className={`h-9 px-3 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer border ${
               activeLightCount > 0
                 ? 'bg-[#FFDB00]/15 hover:bg-[#FFDB00]/25 text-[#FFDB00] border-[#FFDB00]/45'
                 : 'bg-[#262626] hover:bg-[#3D3D3D] text-[#C4C1B9] border-[#4A4A4A]'
@@ -189,7 +191,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </button>
 
           {lightMenuOpen && (
-            <div className="absolute right-0 mt-2 w-80 rounded-xl shadow-2xl border border-[#4A4A4A] bg-[#323232] text-[#F5F3EE] overflow-hidden z-50">
+            <div className="absolute right-0 mt-3 w-80 rounded-2xl shadow-2xl border border-[#4A4A4A] bg-[#323232] text-[#F5F3EE] overflow-hidden z-50">
               <div className="px-4 py-3 border-b border-[#454545] bg-[#262626] flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Lightbulb className="w-4 h-4 text-[#FFDB00]" />
@@ -201,14 +203,14 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   <button
                     type="button"
                     onClick={() => onSetAllLights(true)}
-                    className="px-2 py-1 rounded text-[11px] font-bold cursor-pointer transition-colors bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424]"
+                    className="px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-colors bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424]"
                   >
                     {lang === 'id' ? 'Semua ON' : 'All ON'}
                   </button>
                   <button
                     type="button"
                     onClick={() => onSetAllLights(false)}
-                    className="px-2 py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors bg-[#3D3D3D] hover:bg-[#4A4A4A] text-[#E6E3DC]"
+                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold cursor-pointer transition-colors bg-[#3D3D3D] hover:bg-[#4A4A4A] text-[#E6E3DC]"
                   >
                     OFF
                   </button>
@@ -223,7 +225,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       key={item.id}
                       type="button"
                       onClick={() => onToggleLightCircuit(item.id)}
-                      className={`w-full px-3 py-2.5 rounded-lg border flex items-center justify-between gap-3 text-left transition-colors cursor-pointer ${
+                      className={`w-full px-3 py-2.5 rounded-xl border flex items-center justify-between gap-3 text-left transition-colors cursor-pointer ${
                         isOn
                           ? 'bg-[#3B392C] border-[#FFDB00]/45 hover:bg-[#444130]'
                           : 'bg-[#282828] border-[#454545] hover:bg-[#383838]'
@@ -248,11 +250,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                           {isOn ? 'ON' : 'OFF'}
                         </span>
                         <span
-                          className={`w-10 h-5 rounded-md p-0.5 flex items-center transition-colors ${
+                          className={`w-10 h-5 rounded-full p-0.5 flex items-center transition-colors ${
                             isOn ? 'bg-[#FFDB00] justify-end' : 'bg-[#4A4A4A] justify-start'
                           }`}
                         >
-                          <span className="w-4 h-4 rounded-sm bg-[#242424] shadow-xs flex items-center justify-center">
+                          <span className="w-4 h-4 rounded-full bg-[#242424] shadow-xs flex items-center justify-center">
                             <Power
                               className={`w-2.5 h-2.5 ${isOn ? 'text-[#FFDB00]' : 'text-[#9A978F]'}`}
                             />
@@ -277,7 +279,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         <button
           type="button"
           onClick={() => onSetViewMode(viewMode === 'directory' ? '3d' : 'directory')}
-          className={`h-10 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer border ${
+          className={`h-9 px-3.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer border ${
             viewMode === 'directory'
               ? 'bg-[#FFDB00] text-[#242424] border-[#FFDB00] font-bold'
               : 'bg-[#262626] text-[#F5F3EE] border-[#4A4A4A] hover:bg-[#3D3D3D]'
@@ -304,7 +306,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               setZoneMenuOpen((v) => !v);
               setLightMenuOpen(false);
             }}
-            className="h-10 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer bg-[#262626] hover:bg-[#3D3D3D] text-[#F5F3EE] border border-[#4A4A4A]"
+            className="h-9 px-3.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer bg-[#262626] hover:bg-[#3D3D3D] text-[#F5F3EE] border border-[#4A4A4A]"
           >
             <MapPin className="w-4 h-4 text-[#FFDB00] shrink-0" />
             <span className="hidden lg:inline max-w-[140px] truncate">
@@ -315,7 +317,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </button>
 
           {zoneMenuOpen && (
-            <div className="absolute right-0 mt-2 w-80 max-h-[75vh] overflow-y-auto elban-scroll border border-[#4A4A4A] bg-[#323232] text-[#F5F3EE] rounded-xl shadow-2xl py-2 z-50">
+            <div className="absolute right-0 mt-3 w-80 max-h-[75vh] overflow-y-auto elban-scroll border border-[#4A4A4A] bg-[#323232] text-[#F5F3EE] rounded-2xl shadow-2xl py-2 z-50">
               <div className="px-4 py-2 border-b border-[#454545] flex items-center justify-between">
                 <span className="text-xs font-semibold text-[#D6D3CB]">
                   {lang === 'id' ? 'Teleportasi 9 Zona Bandara' : '9 Airport Operational Zones'}
@@ -339,7 +341,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     }`}
                   >
                     <span
-                      className={`font-mono-tech text-xs font-bold w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5 ${
+                      className={`font-mono-tech text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                         isActive
                           ? 'bg-[#FFDB00] text-[#242424]'
                           : 'bg-[#262626] text-[#BDBAB2]'
@@ -364,14 +366,14 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
         {/* Language Selector (ID / EN) */}
         <div
-          className="hidden xl:flex items-center p-0.5 rounded-lg border border-[#4A4A4A] bg-[#262626] shrink-0"
+          className="hidden xl:flex items-center p-0.5 rounded-full border border-[#4A4A4A] bg-[#262626] shrink-0"
           role="group"
           aria-label="Language switcher"
         >
           <button
             type="button"
             onClick={() => onToggleLang('id')}
-            className={`px-2 py-1.5 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+            className={`px-2.5 py-1 text-xs font-bold rounded-full transition-colors cursor-pointer ${
               lang === 'id'
                 ? 'bg-[#FFDB00] text-[#242424] shadow-xs'
                 : 'text-[#BDBAB2] hover:text-white'
@@ -382,7 +384,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <button
             type="button"
             onClick={() => onToggleLang('en')}
-            className={`px-2 py-1.5 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+            className={`px-2.5 py-1 text-xs font-bold rounded-full transition-colors cursor-pointer ${
               lang === 'en'
                 ? 'bg-[#FFDB00] text-[#242424] shadow-xs'
                 : 'text-[#BDBAB2] hover:text-white'

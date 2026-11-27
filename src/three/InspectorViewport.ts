@@ -26,7 +26,7 @@ const _dayBgColor = new THREE.Color(0xf1f5f9);
 const _nightBgColor = new THREE.Color(0x070d1a);
 const _dayGroundColor = new THREE.Color(0xe2e8f0);
 const _nightGroundColor = new THREE.Color(0x0f172a);
-const _dayHemiSky = new THREE.Color(0xf0f9ff);
+const _dayHemiSky = new THREE.Color(0xfafaf9);
 const _nightHemiSky = new THREE.Color(0x1e3a5f);
 const _dayHemiGround = new THREE.Color(0x94a3b8);
 const _nightHemiGround = new THREE.Color(0x020617);
@@ -52,6 +52,8 @@ export class InspectorViewportController {
   private leaderLines = new Map<string, THREE.Line>();
   private viewMode: InspectViewMode = 'normal';
   private selectedComponentId: string | null = null;
+  private hoveredComponentId: string | null = null;
+  private animatedMaterials = new Set<THREE.Material>();
   private pasSignalState: PasInspectorSignalState = {
     active: false,
     emergency: false,
@@ -86,6 +88,7 @@ export class InspectorViewportController {
   private onPointerDownBound: (e: PointerEvent) => void;
   private onPointerMoveBound: (e: PointerEvent) => void;
   private onPointerUpBound: (e: PointerEvent) => void;
+  private onPointerLeaveBound: () => void;
 
   constructor(
     container: HTMLElement,
@@ -142,7 +145,7 @@ export class InspectorViewportController {
     this.controls.target.set(0, 1.15, 0);
 
     // Three-point studio lighting (dynamically blended between Day & Night)
-    this.hemiLight = new THREE.HemisphereLight(0xf0f9ff, 0x94a3b8, 0.95);
+    this.hemiLight = new THREE.HemisphereLight(0xfafaf9, 0x94a3b8, 0.95);
     this.scene.add(this.hemiLight);
     this.keyLight = new THREE.DirectionalLight(0xfff7ed, 1.35);
     this.keyLight.position.set(5, 8, 6);
@@ -152,7 +155,7 @@ export class InspectorViewportController {
       this.keyLight.shadow.bias = -0.0005;
     }
     this.scene.add(this.keyLight);
-    this.rimLight = new THREE.DirectionalLight(0x38bdf8, 0.55);
+    this.rimLight = new THREE.DirectionalLight(0xf5f5f4, 0.45);
     this.rimLight.position.set(-6, 5, -5);
     this.scene.add(this.rimLight);
 
@@ -223,6 +226,7 @@ export class InspectorViewportController {
 
     // Build centered standalone hero equipment model for this system
     this.unit = buildEquipmentBySystem(systemId, this.renderer.capabilities.getMaxAnisotropy());
+    this.isolateSubComponentMaterials();
     this.scene.add(this.unit.root);
 
     // Build dynamic 3D leader lines for Exploded View
@@ -264,6 +268,7 @@ export class InspectorViewportController {
     };
     this.onPointerMoveBound = this.handlePointerMove.bind(this);
     this.onPointerUpBound = this.handlePointerUp.bind(this);
+    this.onPointerLeaveBound = this.handlePointerLeave.bind(this);
 
     window.addEventListener('resize', this.onResizeBound);
     if (typeof ResizeObserver !== 'undefined') {
@@ -273,6 +278,7 @@ export class InspectorViewportController {
     this.renderer.domElement.addEventListener('pointerdown', this.onPointerDownBound);
     this.renderer.domElement.addEventListener('pointermove', this.onPointerMoveBound);
     this.renderer.domElement.addEventListener('pointerup', this.onPointerUpBound);
+    this.renderer.domElement.addEventListener('pointerleave', this.onPointerLeaveBound);
 
     this.tick();
   }
@@ -298,6 +304,58 @@ export class InspectorViewportController {
     this.nightGrid.visible = nightMode;
   }
 
+  private isolateSubComponentMaterials(): void {
+    this.animatedMaterials.clear();
+    const pasRig = this.unit.animatedParts.pasRig;
+    if (pasRig) {
+      this.animatedMaterials.add(pasRig.pttGlowRingMat);
+      this.animatedMaterials.add(pasRig.micActiveLedMat);
+      for (const m of pasRig.rackPulseMats) this.animatedMaterials.add(m);
+      for (const spk of pasRig.speakers) this.animatedMaterials.add(spk.handle.statusLedMat);
+      for (const st of pasRig.streams) this.animatedMaterials.add(st.cableMat);
+    }
+
+    const outerShellSet = new Set<THREE.Mesh>(this.unit.outerShellMeshes);
+
+    for (const sub of this.unit.subComponents) {
+      const subCloneMap = new Map<THREE.Material, THREE.Material>();
+      sub.group.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh || mesh.userData.isWaveEffect) return;
+        const isOuterShell = outerShellSet.has(mesh);
+
+        const cloneOne = (m: THREE.Material): THREE.Material => {
+          if (this.animatedMaterials.has(m)) return m;
+          if (isOuterShell) return m.clone();
+          let cloned = subCloneMap.get(m);
+          if (!cloned) {
+            cloned = m.clone();
+            subCloneMap.set(m, cloned);
+          }
+          return cloned;
+        };
+
+        if (Array.isArray(mesh.material)) {
+          mesh.material = mesh.material.map(cloneOne);
+        } else if (mesh.material) {
+          mesh.material = cloneOne(mesh.material);
+        }
+
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mesh.userData.origEmissives = mats.map((m) => {
+          const std = m as THREE.MeshStandardMaterial;
+          if (!std || !std.emissive || std.emissiveMap || this.animatedMaterials.has(m)) {
+            return null;
+          }
+          return {
+            hex: std.emissive.getHex(),
+            intensity: std.emissiveIntensity,
+          };
+        });
+      });
+    }
+  }
+
   private applyVisualState(): void {
     const isXRay = this.viewMode === 'xray';
     const isExploded = this.viewMode === 'exploded';
@@ -321,26 +379,27 @@ export class InspectorViewportController {
       mat.needsUpdate = true;
     }
 
-    // Highlight selected sub-component cleanly
+    // Preserve authentic original colors on all untouched devices; highlight only the actively hovered device
     for (const sub of this.unit.subComponents) {
-      const isSelected = sub.componentId === this.selectedComponentId;
+      const isHovered = this.hoveredComponentId !== null && sub.componentId === this.hoveredComponentId;
       sub.group.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (!mesh.isMesh || mesh.userData.isWaveEffect) return;
         const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        mats.forEach((m) => {
+        const origList = mesh.userData.origEmissives as
+          | Array<{ hex: number; intensity: number } | null>
+          | undefined;
+        mats.forEach((m, idx) => {
+          const orig = origList?.[idx];
+          if (!orig) return;
           const std = m as THREE.MeshStandardMaterial;
           if (!std || !std.emissive || std.emissiveMap) return;
-          if (mesh.userData.origEmissive === undefined) {
-            mesh.userData.origEmissive = std.emissive.getHex();
-            mesh.userData.origEmissiveIntensity = std.emissiveIntensity;
-          }
-          if (isSelected) {
-            std.emissive.setHex(0x0284c7);
-            std.emissiveIntensity = 0.45;
+          if (isHovered) {
+            std.emissive.setHex(0x38bdf8);
+            std.emissiveIntensity = 0.22;
           } else {
-            std.emissive.setHex(mesh.userData.origEmissive);
-            std.emissiveIntensity = mesh.userData.origEmissiveIntensity;
+            std.emissive.setHex(orig.hex);
+            std.emissiveIntensity = orig.intensity;
           }
         });
       });
@@ -374,6 +433,10 @@ export class InspectorViewportController {
     const hit = hits.find((h) => !h.object.userData.isWaveEffect);
     if (!hit) {
       this.renderer.domElement.style.cursor = 'grab';
+      if (this.hoveredComponentId !== null) {
+        this.hoveredComponentId = null;
+        this.applyVisualState();
+      }
       this.onHoverComponent?.(null, undefined);
       return;
     }
@@ -391,9 +454,24 @@ export class InspectorViewportController {
       cur = cur.parent;
     }
 
+    const nextHover = compId ?? null;
+    if (this.hoveredComponentId !== nextHover) {
+      this.hoveredComponentId = nextHover;
+      this.applyVisualState();
+    }
+
     const interactive = Boolean(compId || pasAction);
     this.renderer.domElement.style.cursor = interactive ? 'pointer' : 'grab';
     this.onHoverComponent?.(compId ?? null, pasAction);
+  }
+
+  private handlePointerLeave(): void {
+    this.renderer.domElement.style.cursor = 'grab';
+    if (this.hoveredComponentId !== null) {
+      this.hoveredComponentId = null;
+      this.applyVisualState();
+    }
+    this.onHoverComponent?.(null, undefined);
   }
 
   private handlePointerUp(e: PointerEvent): void {
@@ -648,6 +726,7 @@ export class InspectorViewportController {
     this.renderer.domElement.removeEventListener('pointerdown', this.onPointerDownBound);
     this.renderer.domElement.removeEventListener('pointermove', this.onPointerMoveBound);
     this.renderer.domElement.removeEventListener('pointerup', this.onPointerUpBound);
+    this.renderer.domElement.removeEventListener('pointerleave', this.onPointerLeaveBound);
     this.controls.dispose();
     this.envTexture?.dispose();
     disposeObject3D(this.scene);

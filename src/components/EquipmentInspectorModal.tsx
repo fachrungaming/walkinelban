@@ -83,6 +83,7 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
       : components[0]?.id;
 
   const [selectedCompId, setSelectedCompId] = useState<string>(defaultCompId);
+  const [highlighted3DCompId, setHighlighted3DCompId] = useState<string | null>(null);
   // Start PAS in Normal mode so cables between Paging -> 42U Rack -> Column/Ceiling/Horn Speakers align directly into ports
   const [inspectMode, setInspectMode] = useState<InspectViewMode>(
     systemId === 'sys-pas' ? 'normal' : 'exploded'
@@ -243,6 +244,7 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
 
   useEffect(() => {
     setSelectedCompId(defaultCompId);
+    setHighlighted3DCompId(null);
   }, [defaultCompId]);
 
   useEffect(() => {
@@ -250,11 +252,15 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
     const ctrl = new InspectorViewportController(
       viewportRef.current,
       systemId,
-      selectedCompId,
-      (compId) => setSelectedCompId(compId),
+      null,
+      (compId) => {
+        setSelectedCompId(compId);
+        setHighlighted3DCompId(compId);
+      },
       (action) => pasActionCallbackRef.current(action),
       (compId) => {
         setSelectedCompId(compId);
+        setHighlighted3DCompId(compId);
         setDissectingCompId(compId);
       },
       (compId, pasAction) => setHoveredTarget({ compId, pasAction })
@@ -276,8 +282,8 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
   }, [inspectMode]);
 
   useEffect(() => {
-    controllerRef.current?.setSelectedComponent(selectedCompId);
-  }, [selectedCompId]);
+    controllerRef.current?.setSelectedComponent(highlighted3DCompId);
+  }, [highlighted3DCompId]);
 
   useEffect(() => {
     controllerRef.current?.setLightingState(nightMode, lampOn);
@@ -304,18 +310,30 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
               : 'lg:w-[56%] h-[42vh] lg:h-full border-b lg:border-b-0 lg:border-r border-[#4A4A4A]'
           }`}
         >
-          {/* Top-Left Title */}
-          <div className="absolute top-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-            <div className="bg-[#323232]/95 border border-[#4A4A4A] rounded-lg px-3.5 py-1.5 shadow-md pointer-events-auto">
-              <div className="font-charm text-lg font-bold text-[#FFDB00] leading-tight">
+          {/* Top Floating Pill Navbar (Strictly 1 Row) */}
+          <div className="absolute top-3.5 left-3 right-3 z-10 pointer-events-none flex justify-center">
+            <div
+              className={`pointer-events-auto max-w-full rounded-full border px-2 sm:px-3 py-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.48)] flex flex-nowrap items-center gap-1.5 whitespace-nowrap overflow-x-auto elban-scroll transition-colors ${
+                nightMode
+                  ? 'bg-[#242424]/96 border-[#FFDB00]/45 ring-1 ring-[#FFDB00]/15'
+                  : 'bg-[#323232]/96 border-[#525252] ring-1 ring-white/10'
+              }`}
+            >
+              <div
+                title={lang === 'id' ? system.name_id : system.name_en}
+                className={`font-charm text-sm sm:text-base font-bold text-[#FFDB00] leading-tight pl-1.5 pr-0.5 truncate shrink ${
+                  detailsMinimized
+                    ? 'max-w-[130px] sm:max-w-[210px] xl:max-w-[280px]'
+                    : 'max-w-[110px] sm:max-w-[145px] xl:max-w-[185px]'
+                }`}
+              >
                 {lang === 'id' ? system.name_id : system.name_en}
               </div>
-            </div>
 
-            {/* View Mode Segmented Switcher + Night Mode & Lamp Switch + Restore Panel Actions */}
-            <div className="pointer-events-auto flex flex-wrap items-center gap-1.5">
+              <span className="h-4 w-px bg-[#4E4E4E] shrink-0" aria-hidden="true" />
+
               {/* Mode Siang/Malam & Saklar Lampu */}
-              <div className="flex items-center gap-1 p-1 bg-[#323232]/95 border border-[#4A4A4A] rounded-lg shadow-md">
+              <div className="flex items-center gap-0.5 p-0.5 bg-[#242424] border border-[#454545] rounded-full shrink-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -323,14 +341,16 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
                     playTone(nightMode ? 640 : 420, 0.05, 'sine', 0.04);
                   }}
                   title={nightMode ? 'Beralih ke Mode Siang' : 'Beralih ke Mode Malam'}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
                     nightMode
                       ? 'bg-[#FFDB00] text-[#242424] font-bold'
                       : 'text-[#D6D3CB] hover:bg-[#3D3D3D] hover:text-white'
                   }`}
                 >
                   {nightMode ? <Moon className="w-3.5 h-3.5 text-[#242424]" /> : <Sun className="w-3.5 h-3.5 text-[#FFDB00]" />}
-                  <span className="hidden sm:inline">{nightMode ? 'Malam' : 'Siang'}</span>
+                  <span className={detailsMinimized ? 'hidden md:inline' : 'hidden 2xl:inline'}>
+                    {nightMode ? 'Malam' : 'Siang'}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -339,16 +359,16 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
                     playTone(lampOn ? 320 : 820, 0.045, 'triangle', 0.05);
                   }}
                   title={lampOn ? 'Matikan Lampu Studio' : 'Nyalakan Lampu Studio'}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
                     lampOn
                       ? 'bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424] font-bold'
                       : 'bg-[#262626] hover:bg-[#3D3D3D] text-[#BDBAB2]'
                   }`}
                 >
                   <Lightbulb className={`w-3.5 h-3.5 ${lampOn ? 'fill-[#242424]' : ''}`} />
-                  <span className="hidden sm:inline">Lampu</span>
+                  <span className={detailsMinimized ? 'hidden lg:inline' : 'hidden 2xl:inline'}>Lampu</span>
                   <span
-                    className={`font-mono-tech text-[10px] font-bold px-1 py-0.2 rounded ${
+                    className={`font-mono-tech text-[10px] font-bold px-1 rounded-full ${
                       lampOn
                         ? 'bg-[#242424]/15 text-[#242424]'
                         : 'bg-[#1E1E1E] text-[#9A978F]'
@@ -359,42 +379,47 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
                 </button>
               </div>
 
-              <div className="flex items-center gap-1 p-1 bg-[#323232]/95 border border-[#4A4A4A] rounded-lg shadow-md">
+              <div className="flex items-center gap-0.5 p-0.5 bg-[#242424] border border-[#454545] rounded-full shrink-0">
                 <button
                   type="button"
                   onClick={() => setInspectMode('normal')}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  title="Normal"
+                  className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
                     inspectMode === 'normal'
                       ? 'bg-[#FFDB00] text-[#242424] font-bold'
                       : 'text-[#D6D3CB] hover:text-white hover:bg-[#3D3D3D]'
                   }`}
                 >
                   <Box className="w-3.5 h-3.5" />
-                  <span>Normal</span>
+                  <span className={detailsMinimized ? 'hidden sm:inline' : 'hidden xl:inline'}>Normal</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setInspectMode('xray')}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  title={lang === 'id' ? 'Transparan' : 'X-Ray'}
+                  className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
                     inspectMode === 'xray'
                       ? 'bg-[#FFDB00] text-[#242424] font-bold'
                       : 'text-[#D6D3CB] hover:text-white hover:bg-[#3D3D3D]'
                   }`}
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  <span>{lang === 'id' ? 'Transparan' : 'X-Ray Casing'}</span>
+                  <span className={detailsMinimized ? 'hidden sm:inline' : 'hidden xl:inline'}>
+                    {lang === 'id' ? 'Transparan' : 'X-Ray'}
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setInspectMode('exploded')}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                  title="Exploded View"
+                  className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
                     inspectMode === 'exploded'
                       ? 'bg-[#FFDB00] text-[#242424] font-bold'
                       : 'text-[#D6D3CB] hover:text-white hover:bg-[#3D3D3D]'
                   }`}
                 >
                   <Layers className="w-3.5 h-3.5" />
-                  <span>Exploded View</span>
+                  <span className={detailsMinimized ? 'hidden sm:inline' : 'hidden xl:inline'}>Exploded</span>
                 </button>
               </div>
 
@@ -403,18 +428,18 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
                   <button
                     type="button"
                     onClick={() => setDetailsMinimized(false)}
-                    className="px-3 py-2 rounded-lg bg-[#FFDB00] hover:bg-[#E6C500] border border-[#FFDB00] text-[#242424] text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-colors"
+                    className="px-2.5 py-1 rounded-full bg-[#FFDB00] hover:bg-[#E6C500] border border-[#FFDB00] text-[#242424] text-xs font-bold flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 transition-colors"
                   >
                     <Maximize2 className="w-3.5 h-3.5 text-[#242424]" />
-                    <span>{lang === 'id' ? 'Tampilkan Detail' : 'Show Details'}</span>
+                    <span className="hidden sm:inline">{lang === 'id' ? 'Detail' : 'Details'}</span>
                   </button>
                   <button
                     type="button"
                     onClick={onClose}
                     aria-label={lang === 'id' ? 'Kembali ke area' : 'Back to zone'}
-                    className="w-8 h-8 rounded-lg bg-[#323232]/95 hover:bg-[#3D3D3D] border border-[#4A4A4A] text-[#F5F3EE] shadow-md flex items-center justify-center cursor-pointer transition-colors"
+                    className="w-7 h-7 rounded-full bg-[#262626] hover:bg-rose-600 border border-[#4A4A4A] hover:border-rose-600 text-[#F5F3EE] flex items-center justify-center shrink-0 cursor-pointer transition-colors"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </>
               )}
@@ -426,8 +451,8 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
 
           {/* Hover Cue: Click 3D Device to Dissect Internal Components */}
           {hoveredTarget.compId && !dissectingCompId && (
-            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 pointer-events-none max-w-[90%]">
-              <div className="bg-[#262626]/95 text-[#F5F3EE] border border-[#FFDB00]/45 rounded-lg px-3 py-1.5 shadow-lg text-xs font-medium flex items-center gap-2">
+            <div className="absolute top-[72px] left-1/2 -translate-x-1/2 z-10 pointer-events-none max-w-[90%]">
+              <div className="bg-[#262626]/95 text-[#F5F3EE] border border-[#FFDB00]/45 rounded-full px-3.5 py-1.5 shadow-lg text-xs font-medium flex items-center gap-2">
                 <Cpu className="w-3.5 h-3.5 text-[#FFDB00] shrink-0" />
                 <span className="truncate">
                   {hoveredTarget.pasAction === 'ptt'
@@ -495,7 +520,7 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
 
                     {(
                       [
-                        { id: 'column', compId: 'comp-pas-aas', label: 'Column 20W' },
+                        { id: 'column', compId: 'comp-pas-column', label: 'Column 20W' },
                         { id: 'ceiling', compId: 'comp-pas-ceiling', label: 'Ceiling 6W' },
                         { id: 'horn', compId: 'comp-pas-horn', label: 'Horn 30W' },
                       ] as const
@@ -575,7 +600,10 @@ export const EquipmentInspectorModal: React.FC<EquipmentInspectorModalProps> = (
                   <button
                     key={c.id}
                     type="button"
-                    onClick={() => setSelectedCompId(c.id)}
+                    onClick={() => {
+                      setSelectedCompId(c.id);
+                      setHighlighted3DCompId(c.id);
+                    }}
                     className={`px-2.5 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer border transition-colors ${
                       selected
                         ? 'bg-[#FFDB00] text-[#242424] border-[#FFDB00] font-bold'

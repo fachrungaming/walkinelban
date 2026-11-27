@@ -131,6 +131,7 @@ export function ServerRackDigitalTwinModal({
 }: ServerRackDigitalTwinModalProps) {
   const [activeTab, setActiveTab] = useState<RightTabId>('inspector');
   const [selectedUnitId, setSelectedUnitId] = useState<RackUnitId>('unit_05');
+  const [highlightedUnitId, setHighlightedUnitId] = useState<RackUnitId | null>(null);
   const [hoveredUnitId, setHoveredUnitId] = useState<RackUnitId | null>(null);
   const [simParams, setSimParams] = useState<RackSimulationParams>(DEFAULT_RACK_SIM_PARAMS);
   const [faults, setFaults] = useState<RackFaultState>(DEFAULT_RACK_FAULT_STATE);
@@ -165,6 +166,8 @@ export function ServerRackDigitalTwinModal({
   faultsRef.current = faults;
   const selectedUnitRef = useRef(selectedUnitId);
   selectedUnitRef.current = selectedUnitId;
+  const highlightedUnitRef = useRef<RackUnitId | null>(highlightedUnitId);
+  highlightedUnitRef.current = highlightedUnitId;
   const hoveredUnitRef = useRef(hoveredUnitId);
   hoveredUnitRef.current = hoveredUnitId;
 
@@ -257,6 +260,7 @@ export function ServerRackDigitalTwinModal({
   const handleSelectUnit = useCallback(
     (unitId: RackUnitId, focusCam = true) => {
       setSelectedUnitId(unitId);
+      setHighlightedUnitId(unitId);
       if (focusCam) {
         const y = telemetryMap[unitId].focusY;
         moveCameraTo([0.78, Math.max(0.45, y + 0.08), 1.48], [0, y, 0.14]);
@@ -282,6 +286,7 @@ export function ServerRackDigitalTwinModal({
     setFaults(DEFAULT_RACK_FAULT_STATE);
     setKvmTarget('r360');
     setSelectedUnitId('unit_05');
+    setHighlightedUnitId(null);
     handleCameraPreset('isometric');
   }, [handleCameraPreset]);
 
@@ -345,7 +350,7 @@ export function ServerRackDigitalTwinModal({
       key.shadow.camera.far = 14;
       key.shadow.bias = -0.0005;
     }
-    const rim = new THREE.DirectionalLight(0x93c5fd, 0.65);
+    const rim = new THREE.DirectionalLight(0xf8fafc, 0.55);
     rim.position.set(-3.4, 2.4, -2.8);
     scene.add(hemi, key, rim);
 
@@ -429,12 +434,19 @@ export function ServerRackDigitalTwinModal({
       const uid = getUnitFromPointer(e.clientX, e.clientY);
       if (uid) {
         setSelectedUnitId(uid);
+        setHighlightedUnitId(uid);
+      } else {
+        setHighlightedUnitId(null);
       }
+    };
+    const onPointerLeave = () => {
+      setHoveredUnitId(null);
     };
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
+    renderer.domElement.addEventListener('pointerleave', onPointerLeave);
 
     // ResizeObserver so toggling toolbar/right panel resizes viewport cleanly
     const resizeObserver = new ResizeObserver(() => {
@@ -488,7 +500,7 @@ export function ServerRackDigitalTwinModal({
         rack,
         simParamsRef.current,
         faultsRef.current,
-        selectedUnitRef.current,
+        highlightedUnitRef.current,
         hoveredUnitRef.current,
         delta,
         elapsed,
@@ -514,6 +526,7 @@ export function ServerRackDigitalTwinModal({
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
+      renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
       controls.dispose();
       rack.dispose();
       floorGeo.dispose();
@@ -537,23 +550,25 @@ export function ServerRackDigitalTwinModal({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#242424] text-[#F5F3EE]">
-      {/* ==================== TOP DIGITAL TWIN HEADER ==================== */}
-      <header className="h-14 shrink-0 bg-[#323232] border-b border-[#4A4A4A] px-3 sm:px-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-[#FFDB00] text-[#242424] flex items-center justify-center shrink-0">
+      {/* ==================== TOP FLOATING PILL NAVBAR (Strictly 1 Row) ==================== */}
+      <header className="absolute top-3 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100vw-1.5rem)] rounded-full border border-[#525252] ring-1 ring-white/10 bg-[#323232]/96 px-2.5 sm:px-3 py-1.5 shadow-[0_14px_38px_rgba(0,0,0,0.52)] flex flex-nowrap items-center justify-between gap-2 whitespace-nowrap">
+        <div className="flex items-center gap-2 min-w-0 pl-0.5 shrink">
+          <div className="w-8 h-8 rounded-full bg-[#FFDB00] text-[#242424] flex items-center justify-center shrink-0 shadow-xs">
             <Server className="w-4 h-4" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 max-w-[140px] sm:max-w-[210px] xl:max-w-[250px]">
             <div className="flex items-center gap-2">
-              <h2 className="font-charm text-lg sm:text-xl font-bold text-[#FFDB00] truncate leading-tight">
+              <h2 className="font-charm text-sm sm:text-base font-bold text-[#FFDB00] truncate leading-tight pr-1">
                 42U Network Rack Digital Twin
               </h2>
             </div>
           </div>
         </div>
 
-        {/* 3 Navigation Tabs */}
-        <div className="hidden lg:flex items-center gap-1 bg-[#242424] p-1 rounded-lg border border-[#454545]">
+        <span className="hidden lg:inline-block h-5 w-px bg-[#4E4E4E] shrink-0" aria-hidden="true" />
+
+        {/* 3 Navigation Tabs (Inner Pill Switcher) */}
+        <div className="hidden lg:flex flex-nowrap items-center gap-1 bg-[#242424] p-0.5 rounded-full border border-[#454545] shrink-0">
           {(
             [
               { id: 'inspector', label: 'Inspector & Telemetri', icon: Cpu },
@@ -571,7 +586,7 @@ export function ServerRackDigitalTwinModal({
                   setActiveTab(t.id);
                   setRightPanelOpen(true);
                 }}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+                className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap ${
                   active
                     ? 'bg-[#FFDB00] text-[#242424] font-bold'
                     : 'text-[#D6D3CB] hover:text-white hover:bg-[#3D3D3D]'
@@ -584,12 +599,14 @@ export function ServerRackDigitalTwinModal({
           })}
         </div>
 
+        <span className="hidden md:inline-block h-5 w-px bg-[#4E4E4E] shrink-0" aria-hidden="true" />
+
         {/* Right Header Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={handleResetSimulation}
-            className="px-2.5 py-1.5 rounded-lg bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-xs font-semibold text-[#F5F3EE] flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="h-8 px-2.5 rounded-full bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-xs font-semibold text-[#F5F3EE] flex items-center gap-1.5 cursor-pointer transition-colors"
             title="Reset Simulasi"
           >
             <RotateCcw className="w-3.5 h-3.5 text-[#FFDB00]" />
@@ -598,7 +615,7 @@ export function ServerRackDigitalTwinModal({
           <button
             type="button"
             onClick={() => setRightPanelOpen((v) => !v)}
-            className="px-2.5 py-1.5 rounded-lg bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-xs font-semibold text-[#F5F3EE] flex items-center gap-1 cursor-pointer transition-colors"
+            className="h-8 px-2.5 rounded-full bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-xs font-semibold text-[#F5F3EE] flex items-center gap-1 cursor-pointer transition-colors"
           >
             {rightPanelOpen ? <ChevronRight className="w-3.5 h-3.5 text-[#FFDB00]" /> : <ChevronLeft className="w-3.5 h-3.5 text-[#FFDB00]" />}
             <span className="hidden xl:inline">{rightPanelOpen ? 'Sembunyikan Panel' : 'Panel Inspeksi'}</span>
@@ -606,7 +623,7 @@ export function ServerRackDigitalTwinModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="h-8 px-3 rounded-full bg-rose-600 hover:bg-rose-700 text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer transition-colors"
           >
             <X className="w-3.5 h-3.5" />
             <span>{lang === 'id' ? 'Kembali 3D' : 'Exit'}</span>
@@ -620,11 +637,11 @@ export function ServerRackDigitalTwinModal({
         <div className="relative flex-1 min-h-[340px] bg-[#1E1E1E] overflow-hidden">
           <div ref={viewportRef} className="w-full h-full" />
 
-          {/* Top-Center Live Telemetry Strip (No backdrop-blur over WebGL) */}
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 max-w-[94%] pointer-events-none">
-            <div className="bg-[#323232]/95 border border-[#4A4A4A] rounded-xl px-3.5 py-2 shadow-lg flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+          {/* Top-Center Live Telemetry Strip (Aligned Below Floating Pill Navbar) */}
+          <div className="absolute top-[72px] left-1/2 -translate-x-1/2 z-10 max-w-[94%] pointer-events-none">
+            <div className="bg-[#323232]/95 border border-[#4A4A4A] rounded-full px-4 py-1.5 shadow-lg flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
               <div className="flex items-center gap-1.5">
-                <span className="font-mono-tech text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FFDB00] text-[#242424]">
+                <span className="font-mono-tech text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFDB00] text-[#242424]">
                   #{selectedUnit.numberBadge}
                 </span>
                 <span className="font-bold text-[#F5F3EE] truncate max-w-[180px] sm:max-w-[240px]">
@@ -641,7 +658,7 @@ export function ServerRackDigitalTwinModal({
                 </strong>
               </div>
               <span
-                className={`font-mono-tech text-[10px] font-bold px-2 py-0.5 rounded ${
+                className={`font-mono-tech text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
                   activeFaultCount > 0 ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
                 }`}
               >
@@ -650,8 +667,8 @@ export function ServerRackDigitalTwinModal({
             </div>
           </div>
 
-          {/* Collapsible Left Toolbar Rak 3D (matches serverku-nine.vercel.app) */}
-          <div className="absolute top-16 left-3 bottom-3 z-10 flex flex-col pointer-events-none max-w-[258px]">
+          {/* Collapsible Left Toolbar Rak 3D */}
+          <div className="absolute top-[118px] left-3 bottom-3 z-10 flex flex-col pointer-events-none max-w-[258px]">
             <button
               type="button"
               onClick={() => setToolbarOpen((v) => !v)}
@@ -901,7 +918,7 @@ export function ServerRackDigitalTwinModal({
 
         {/* ==================== RIGHT 4-TAB LEARNING & DIAGNOSTIC PANEL ==================== */}
         {rightPanelOpen && (
-          <aside className="w-full lg:w-[410px] xl:w-[435px] shrink-0 bg-[#323232] text-[#F5F3EE] border-t lg:border-t-0 lg:border-l border-[#4A4A4A] flex flex-col max-h-[48vh] lg:max-h-none">
+          <aside className="w-full lg:w-[410px] xl:w-[435px] shrink-0 bg-[#323232] text-[#F5F3EE] border-t lg:border-t-0 lg:border-l border-[#4A4A4A] flex flex-col max-h-[48vh] lg:max-h-none lg:pt-[68px]">
             {/* Mobile / Tablet Tab Switcher */}
             <div className="flex lg:hidden border-b border-[#4A4A4A] bg-[#262626] p-1.5 gap-1 overflow-x-auto shrink-0">
               {(
