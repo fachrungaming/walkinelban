@@ -179,12 +179,12 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className={`px-3.5 py-2.5 rounded-xl border shadow-lg flex items-center gap-2.5 text-xs font-semibold cursor-pointer transition-colors ${
+          className={`px-3.5 py-2.5 rounded-xl border shadow-xl flex items-center gap-2.5 text-xs font-semibold cursor-pointer transition-colors ${
             isBroadcasting
               ? isEmergency
                 ? 'bg-red-700 hover:bg-red-800 text-white border-red-500'
-                : 'bg-[#0B192C] hover:bg-slate-800 text-white border-sky-500'
-              : 'bg-white/96 hover:bg-white text-slate-800 border-slate-200'
+                : 'bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424] border-[#FFDB00]'
+              : 'bg-[#323232]/96 hover:bg-[#3D3D3D] text-[#F5F3EE] border-[#4A4A4A]'
           }`}
         >
           <Volume2
@@ -192,12 +192,12 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
               isBroadcasting
                 ? isEmergency
                   ? 'text-red-200'
-                  : 'text-sky-400'
-                : 'text-sky-600'
+                  : 'text-[#242424]'
+                : 'text-[#FFDB00]'
             }`}
           />
           <div className="text-left leading-tight">
-            <div className="font-mono-tech text-[10px] opacity-75">
+            <div className="font-mono-tech text-[10px] opacity-80">
               {isBroadcasting
                 ? lang === 'id'
                   ? `SIARAN AKTIF · ${selectedZones.length} ZONA`
@@ -226,16 +226,16 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
 
   // ==================== EXPANDED PAS ZONE CONSOLE ====================
   return (
-    <div className="fixed bottom-5 left-4 z-20 w-[352px] max-w-[calc(100vw-2rem)] bg-white/96 border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-6rem)]">
+    <div className="fixed bottom-5 left-4 z-20 w-[352px] max-w-[calc(100vw-2rem)] bg-[#323232]/98 text-[#F5F3EE] border border-[#4A4A4A] rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-6rem)]">
       {/* Header Bar */}
-      <div className="bg-[#0B192C] text-white px-3.5 py-2.5 flex items-center justify-between gap-2 shrink-0">
+      <div className="bg-[#262626] text-[#F5F3EE] px-3.5 py-2.5 border-b border-[#454545] flex items-center justify-between gap-2 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <Radio className={`w-4 h-4 shrink-0 ${isBroadcasting ? (isEmergency ? 'text-red-400' : 'text-sky-400') : 'text-sky-400'}`} />
+          <Radio className={`w-4 h-4 shrink-0 ${isBroadcasting && isEmergency ? 'text-red-400' : 'text-[#FFDB00]'}`} />
           <div className="min-w-0">
-            <div className="font-mono-tech text-[10px] text-sky-400 tracking-wide truncate">
+            <div className="font-mono-tech text-[10px] text-[#FFDB00] tracking-wide truncate">
               PAS / AAS · 100V ZONE MATRIX
             </div>
-            <div className="text-xs font-bold truncate">
+            <div className="font-charm text-base font-bold truncate leading-tight">
               {lang === 'id' ? 'Kontroler Audio Publik Terminal' : 'Terminal Public Address Controller'}
             </div>
           </div>
@@ -244,7 +244,7 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer shrink-0"
+          className="p-1.5 rounded-lg bg-[#323232] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-[#FFDB00] cursor-pointer shrink-0"
           title={lang === 'id' ? 'Tutup Panel' : 'Collapse Panel'}
         >
           <ChevronDown className="w-4 h-4" />
@@ -256,10 +256,10 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
         {/* 1. Broadcast Announcement Presets */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-semibold text-slate-600">
+            <span className="text-xs font-semibold text-[#D6D3CB]">
               {lang === 'id' ? 'Preset Pengumuman (AAS)' : 'Announcement Preset (AAS)'}
             </span>
-            <span className="font-mono-tech text-[10px] text-slate-500">{activePreset.tag}</span>
+            <span className="font-mono-tech text-[10px] text-[#FFDB00]">{activePreset.tag}</span>
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             {PRESET_ORDER.map((presetKey) => {
@@ -270,14 +270,14 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
                   key={presetKey}
                   type="button"
                   onClick={() => handleSelectPreset(presetKey)}
-                  className={`px-2.5 py-1.5 rounded-lg border text-left text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-left text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
                     active
                       ? p.isEmergency
-                        ? 'bg-red-600 text-white border-red-700'
-                        : 'bg-[#0B192C] text-white border-[#0B192C]'
+                        ? 'bg-red-600 text-white border-red-500'
+                        : 'bg-[#FFDB00] text-[#242424] border-[#FFDB00] font-bold'
                       : p.isEmergency
-                        ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-red-950/50 text-red-300 border-red-800/60 hover:bg-red-900/50'
+                        : 'bg-[#262626] text-[#E6E3DC] border-[#454545] hover:bg-[#3D3D3D]'
                   }`}
                 >
                   {p.isEmergency && <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
@@ -291,7 +291,7 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
         {/* 2. 9-Zone Speaker Routing Matrix */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-semibold text-slate-600">
+            <span className="text-xs font-semibold text-[#D6D3CB]">
               {lang === 'id'
                 ? `Routing Zona (${selectedZones.length}/9)`
                 : `Zone Routing (${selectedZones.length}/9)`}
@@ -300,14 +300,14 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedZones([currentZoneId])}
-                className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-semibold text-slate-700 cursor-pointer"
+                className="px-1.5 py-0.5 rounded bg-[#262626] hover:bg-[#3D3D3D] border border-[#454545] text-[10px] font-semibold text-[#E6E3DC] cursor-pointer"
               >
                 {lang === 'id' ? 'Zona Ini' : 'Current'}
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedZones(ALL_ZONE_IDS)}
-                className="px-1.5 py-0.5 rounded bg-sky-50 hover:bg-sky-100 text-[10px] font-semibold text-sky-700 cursor-pointer"
+                className="px-1.5 py-0.5 rounded bg-[#FFDB00]/15 hover:bg-[#FFDB00]/25 border border-[#FFDB00]/40 text-[10px] font-semibold text-[#FFDB00] cursor-pointer"
               >
                 {lang === 'id' ? 'Semua' : 'All'}
               </button>
@@ -317,7 +317,7 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
                   setSelectedZones([]);
                   if (isBroadcasting) handleStopBroadcast();
                 }}
-                className="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-semibold text-slate-600 cursor-pointer"
+                className="px-1.5 py-0.5 rounded bg-[#262626] hover:bg-[#3D3D3D] border border-[#454545] text-[10px] font-semibold text-[#BDBAB2] cursor-pointer"
               >
                 {lang === 'id' ? 'Kosong' : 'Clear'}
               </button>
@@ -336,12 +336,12 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
                   className={`rounded-lg border transition-colors flex flex-col justify-between p-1.5 ${
                     isZoneLive
                       ? isEmergency
-                        ? 'bg-red-600 text-white border-red-700'
-                        : 'bg-sky-600 text-white border-sky-700'
+                        ? 'bg-red-600 text-white border-red-500'
+                        : 'bg-[#FFDB00] text-[#242424] border-[#FFDB00]'
                       : isSelected
-                        ? 'bg-sky-50 text-slate-900 border-sky-400'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                  } ${isCurrent && !isZoneLive ? 'ring-1 ring-[#0B192C]/40' : ''}`}
+                        ? 'bg-[#3D3A28] text-[#F5F3EE] border-[#FFDB00]/65'
+                        : 'bg-[#262626] text-[#D6D3CB] border-[#454545] hover:bg-[#383838]'
+                  } ${isCurrent && !isZoneLive ? 'ring-1 ring-[#FFDB00]/50' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-1">
                     <button
@@ -349,12 +349,16 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
                       onClick={() => toggleZone(zId)}
                       className="text-left flex-1 min-w-0 cursor-pointer"
                     >
-                      <div className="text-[11px] font-bold leading-tight truncate">
+                      <div className="text-xs font-bold leading-tight truncate">
                         {lang === 'id' ? spec.short_id : spec.short_en}
                       </div>
                       <div
                         className={`font-mono-tech text-[9px] mt-0.5 ${
-                          isZoneLive ? 'text-white/85' : 'text-slate-500'
+                          isZoneLive
+                            ? isEmergency
+                              ? 'text-white/85'
+                              : 'text-[#242424]/80'
+                            : 'text-[#BDBAB2]'
                         }`}
                       >
                         {formatSpeakerCode(spec)} · {spec.watts}W
@@ -370,8 +374,10 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
                       }
                       className={`p-0.5 rounded cursor-pointer shrink-0 ${
                         isZoneLive
-                          ? 'hover:bg-white/20 text-white'
-                          : 'hover:bg-slate-200 text-slate-400 hover:text-slate-700'
+                          ? isEmergency
+                            ? 'hover:bg-white/20 text-white'
+                            : 'hover:bg-[#242424]/15 text-[#242424]'
+                          : 'hover:bg-[#3D3D3D] text-[#BDBAB2] hover:text-[#FFDB00]'
                       }`}
                     >
                       <MapPin className="w-3 h-3" />
@@ -381,19 +387,19 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
               );
             })}
           </div>
-          <div className="text-[10px] text-slate-400 font-mono-tech mt-1 flex items-center justify-between">
+          <div className="text-[10px] text-[#BDBAB2] font-mono-tech mt-1 flex items-center justify-between">
             <span>C=Ceiling · L=Column (Indoor) · H=Horn (Outdoor)</span>
           </div>
         </div>
 
         {/* 3. Amplifier Telemetry & Audio Gain Controls */}
-        <div className="rounded-lg bg-slate-950 text-white p-2.5 space-y-2 border border-slate-800">
+        <div className="rounded-lg bg-[#242424] text-[#F5F3EE] p-2.5 space-y-2 border border-[#454545]">
           <div className="flex items-center justify-between text-[10px] font-mono-tech">
-            <span className="text-slate-400">
-              100V LINE LOAD: <strong className="text-sky-400">{loadStats.speakers} SPK</strong> ·{' '}
+            <span className="text-[#BDBAB2]">
+              100V LINE LOAD: <strong className="text-[#FFDB00]">{loadStats.speakers} SPK</strong> ·{' '}
               <strong className="text-emerald-400">{loadStats.watts}W</strong>
             </span>
-            <span className={isBroadcasting ? (isEmergency ? 'text-red-400 font-bold' : 'text-sky-400 font-bold') : 'text-slate-500'}>
+            <span className={isBroadcasting ? (isEmergency ? 'text-red-400 font-bold' : 'text-[#FFDB00] font-bold') : 'text-[#8C8982]'}>
               {isBroadcasting ? (isEmergency ? 'MCFA OVERRIDE' : 'TX ACTIVE') : 'STANDBY'}
             </span>
           </div>
@@ -407,14 +413,14 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
                 idx >= 10
                   ? 'bg-red-500'
                   : idx >= 7
-                    ? 'bg-amber-400'
+                    ? 'bg-[#FFDB00]'
                     : isEmergency
                       ? 'bg-red-400'
-                      : 'bg-sky-400';
+                      : 'bg-[#FFDB00]/80';
               return (
                 <div
                   key={idx}
-                  className={`rounded-xs transition-colors duration-75 ${lit ? colorClass : 'bg-slate-800'}`}
+                  className={`rounded-xs transition-colors duration-75 ${lit ? colorClass : 'bg-[#3A3A3A]'}`}
                 />
               );
             })}
@@ -423,9 +429,9 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
           {/* Master Volume + Voice Toggle */}
           <div className="flex items-center gap-2 pt-0.5">
             {volume === 0 ? (
-              <VolumeX className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <VolumeX className="w-3.5 h-3.5 text-[#8C8982] shrink-0" />
             ) : (
-              <Volume2 className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              <Volume2 className="w-3.5 h-3.5 text-[#FFDB00] shrink-0" />
             )}
             <input
               type="range"
@@ -434,16 +440,16 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
               value={Math.round(volume * 100)}
               onChange={(e) => setVolume(Number(e.target.value) / 100)}
               aria-label={lang === 'id' ? 'Volume Master PAS' : 'PAS Master Volume'}
-              className="flex-1 accent-sky-500 h-1.5 cursor-pointer"
+              className="flex-1 accent-[#FFDB00] h-1.5 cursor-pointer"
             />
-            <span className="font-mono-tech text-[10px] w-8 text-right text-slate-300">
+            <span className="font-mono-tech text-[10px] w-8 text-right text-[#D6D3CB]">
               {Math.round(volume * 100)}%
             </span>
             <button
               type="button"
               onClick={() => setUseVoice((v) => !v)}
-              className={`px-2 py-1 rounded text-[10px] font-semibold flex items-center gap-1 cursor-pointer shrink-0 ${
-                useVoice ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-400'
+              className={`px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer shrink-0 ${
+                useVoice ? 'bg-[#FFDB00] text-[#242424]' : 'bg-[#323232] text-[#BDBAB2]'
               }`}
               title={
                 lang === 'id'
@@ -458,8 +464,8 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
         </div>
 
         {/* 4. Announcement Transcript Preview */}
-        <div className="rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-2 text-[11px] text-slate-700 leading-relaxed">
-          <span className="font-mono-tech text-[10px] font-bold text-slate-500 mr-1.5">
+        <div className="rounded-lg bg-[#262626] border border-[#454545] px-2.5 py-2 text-xs text-[#E6E3DC] leading-relaxed">
+          <span className="font-mono-tech text-[10px] font-bold text-[#FFDB00] mr-1.5">
             {lang === 'id' ? 'TEKS AAS:' : 'AAS SCRIPT:'}
           </span>
           {lang === 'id' ? activePreset.script_id : activePreset.script_en}
@@ -480,13 +486,13 @@ export const PasControllerPanel: React.FC<PasControllerPanelProps> = ({
             type="button"
             disabled={selectedZones.length === 0}
             onClick={handleStartBroadcast}
-            className={`w-full py-2.5 px-3 rounded-lg text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-45 disabled:cursor-not-allowed ${
+            className={`w-full py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-45 disabled:cursor-not-allowed ${
               isEmergency
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-[#0B192C] hover:bg-slate-800'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424]'
             }`}
           >
-            <Volume2 className="w-4 h-4 text-sky-400" />
+            <Volume2 className={`w-4 h-4 ${isEmergency ? 'text-white' : 'text-[#242424]'}`} />
             <span>
               {lang === 'id'
                 ? `Siarkan ke ${selectedZones.length} Zona (${loadStats.speakers} Speaker)`

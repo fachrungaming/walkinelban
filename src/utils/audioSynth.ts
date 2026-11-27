@@ -113,6 +113,45 @@ export function playSwitchClick(turnedOn: boolean): void {
   osc.stop(now + 0.05);
 }
 
+export function playPttClick(pressed: boolean): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(pressed ? 940 : 620, now);
+  osc.frequency.exponentialRampToValueAtTime(pressed ? 1320 : 440, now + 0.045);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.08, now + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.07);
+}
+
+export function playSpeakerTestTone(speakerType: 'ceiling' | 'column' | 'horn'): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (speakerType === 'ceiling') {
+    // Warm soft 6W indoor terminal ceiling chime
+    [659.25, 880.0].forEach((freq, idx) => {
+      playReverbNote(ctx, freq, idx * 0.16, 0.42, 'sine', 0.075);
+    });
+  } else if (speakerType === 'column') {
+    // Balanced 20W concourse line-array chime
+    [523.25, 659.25, 783.99].forEach((freq, idx) => {
+      playReverbNote(ctx, freq, idx * 0.14, 0.38, 'triangle', 0.085);
+    });
+  } else {
+    // Crisp high-SPL 30W outdoor IP65 re-entrant horn attention tone
+    [1046.5, 1318.5, 1046.5].forEach((freq, idx) => {
+      playReverbNote(ctx, freq, idx * 0.14, 0.24, 'sawtooth', 0.055);
+    });
+  }
+}
+
 // =========================================================================
 // PUBLIC ADDRESS SYSTEM (PAS / AAS) ZONE-BASED AUDIO SIMULATION ENGINE
 // =========================================================================

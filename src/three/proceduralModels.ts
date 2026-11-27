@@ -2,6 +2,16 @@ import * as THREE from 'three';
 import { COMPONENT_MAP } from '../data/curriculum';
 import { SubsystemLayer, SystemId } from '../types/elban';
 import {
+  createBidsRearPanelTexture,
+  createBidsTexture,
+  createBoschAmpFrontTexture,
+  createBoschAmpRearTexture,
+  createBoschDeltaPsuTexture,
+  createBoschPagingKeypadTexture,
+  createBoschPagingRearTexture,
+  createBoschPagingScreenTexture,
+  createBoschRackControllerTexture,
+  createBoschRackSwitchTexture,
   createCeiaHhmdBackTexture,
   createCeiaHhmdFrontTexture,
   createCeiaLogoTexture,
@@ -11,6 +21,8 @@ import {
   createColumnSpeakerGrilleTexture,
   createFanGrilleTexture,
   createFidsCanvasTexture,
+  createFidsInternalSwitchTexture,
+  createFidsRearPanelTexture,
   createGateCircuitTexture,
   createGateCrownSignTexture,
   createGateEmblemTexture,
@@ -42,6 +54,32 @@ export interface TaggedSubComponent {
   explodedOffset: THREE.Vector3;
 }
 
+export interface PasSignalFlowStream {
+  stage: 'omneo' | 'rack' | 'column' | 'ceiling' | 'horn';
+  curve: THREE.CatmullRomCurve3;
+  cableMat: THREE.MeshStandardMaterial;
+  packets: THREE.Mesh[];
+  baseColor: number;
+  activeColor: number;
+}
+
+export interface PasSpeakerAnimSet {
+  id: 'column' | 'ceiling' | 'horn';
+  handle: PasSpeakerHandle;
+  extraWaveRings: THREE.Mesh[];
+}
+
+export interface PasInteractiveRig {
+  pttCap: THREE.Object3D;
+  pttRestZ: number;
+  pttGlowRingMat: THREE.MeshStandardMaterial;
+  micActiveLedMat: THREE.MeshStandardMaterial;
+  rackPulseMats: THREE.MeshStandardMaterial[];
+  streams: PasSignalFlowStream[];
+  speakers: PasSpeakerAnimSet[];
+  cablesGroup: THREE.Group;
+}
+
 export interface BuiltEquipmentUnit {
   root: THREE.Group;
   systemId: SystemId;
@@ -53,7 +91,9 @@ export interface BuiltEquipmentUnit {
     ptzHead?: THREE.Object3D;
     fidsUpdater?: (d: Date) => void;
     clockUpdater?: (d: Date) => void;
+    bidsUpdater?: (d: Date) => void;
     stackLamp?: THREE.MeshStandardMaterial;
+    pasRig?: PasInteractiveRig;
   };
 }
 
@@ -1322,95 +1362,1676 @@ export function buildAccessFireSystem(): BuiltEquipmentUnit {
 }
 
 // =========================================================================
-// 5. FIDS, BIDS, MASTER CLOCK & PAS/AAS (3 Named Sub-Components)
+// REUSABLE AUTHENTIC BIDS DISPLAY UNIT (InJourney Airports · Belt 7, 3-View Match)
 // =========================================================================
-export function buildFidsPasSystem(maxAnisotropy: number): BuiltEquipmentUnit {
+export interface BuiltBidsDisplayUnit {
+  group: THREE.Group;
+  outerShellMeshes: THREE.Mesh[];
+  updater: (now: Date) => void;
+}
+
+export function createBidsDisplayUnit(maxAnisotropy: number): BuiltBidsDisplayUnit {
+  const group = new THREE.Group();
+  const outerShellMeshes: THREE.Mesh[] = [];
+
+  // Dimensions (exact 16:9 55" commercial signage display matching front/side/rear reference)
+  const W = 1.28;
+  const H = 0.74;
+  const BEZEL_D = 0.036;
+  const REAR_W = 1.14;
+  const REAR_H = 0.62;
+  const REAR_D = 0.034;
+
+  const matBezel = new THREE.MeshStandardMaterial({
+    color: 0x16191e,
+    roughness: 0.42,
+    metalness: 0.42,
+  });
+  const matRearShell = new THREE.MeshStandardMaterial({
+    color: 0x202328,
+    roughness: 0.62,
+    metalness: 0.28,
+  });
+  const matBracket = new THREE.MeshStandardMaterial({
+    color: 0x1b1e23,
+    roughness: 0.44,
+    metalness: 0.76,
+  });
+  const matBolt = new THREE.MeshStandardMaterial({
+    color: 0x0b0d10,
+    roughness: 0.35,
+    metalness: 0.85,
+  });
+  const matCable = new THREE.MeshStandardMaterial({
+    color: 0x0c0f14,
+    roughness: 0.72,
+    metalness: 0.12,
+  });
+  const matKeyholeDark = new THREE.MeshStandardMaterial({
+    color: 0x050709,
+    roughness: 0.85,
+    metalness: 0.1,
+  });
+
+  // 1. Primary Slim Charcoal Outer Bezel Chassis
+  const bezelMesh = new THREE.Mesh(new THREE.BoxGeometry(W, H, BEZEL_D), matBezel);
+  bezelMesh.castShadow = true;
+  bezelMesh.receiveShadow = true;
+  group.add(bezelMesh);
+
+  // 2. Stepped Matte-Black Rear Electronics Housing (visible from side & rear, X-Ray translucent)
+  const rearHousing = new THREE.Mesh(new THREE.BoxGeometry(REAR_W, REAR_H, REAR_D), matRearShell);
+  rearHousing.position.set(0, 0, -(BEZEL_D / 2 + REAR_D / 2));
+  rearHousing.castShadow = true;
+  rearHousing.receiveShadow = true;
+  rearHousing.userData.isOuterShell = true;
+  outerShellMeshes.push(rearHousing);
+  group.add(rearHousing);
+
+  // Subtle tapered perimeter collar bridging outer bezel to stepped rear housing
+  const rearCollar = new THREE.Mesh(
+    new THREE.BoxGeometry(W - 0.04, H - 0.04, 0.012),
+    matRearShell.clone()
+  );
+  rearCollar.position.set(0, 0, -(BEZEL_D / 2 + 0.005));
+  rearCollar.userData.isOuterShell = true;
+  outerShellMeshes.push(rearCollar);
+  group.add(rearCollar);
+
+  // 3. Front 16:9 InJourney Airports Belt 7 Display Screen (live clock + Lion Air / Sriwijaya Air)
+  const bidsCanvas = createBidsTexture(maxAnisotropy);
+  const frontScreen = new THREE.Mesh(
+    new THREE.PlaneGeometry(W - 0.052, H - 0.049),
+    new THREE.MeshStandardMaterial({
+      map: bidsCanvas.texture,
+      emissiveMap: bidsCanvas.texture,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.62,
+      roughness: 0.14,
+      metalness: 0.06,
+    })
+  );
+  frontScreen.position.set(0, 0, BEZEL_D / 2 + 0.0018);
+  group.add(frontScreen);
+
+  // 4. Authentic Matte-Black Rear Panel (Vents, Perimeter Screws, CE/FC Barcode Nameplate, I/O Bay)
+  const rearTex = createBidsRearPanelTexture(maxAnisotropy);
+  const rearPanelPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(REAR_W - 0.008, REAR_H - 0.008),
+    new THREE.MeshStandardMaterial({
+      map: rearTex,
+      roughness: 0.58,
+      metalness: 0.25,
+    })
+  );
+  rearPanelPlane.rotation.y = Math.PI;
+  rearPanelPlane.position.set(0, 0, -(BEZEL_D / 2 + REAR_D + 0.0014));
+  rearPanelPlane.userData.isOuterShell = true;
+  outerShellMeshes.push(rearPanelPlane);
+  group.add(rearPanelPlane);
+
+  // 5. Internal Industrial Electronics inside Stepped Housing (revealed in X-Ray mode!)
+  const internalGroup = new THREE.Group();
+  const pcbMain = new THREE.Mesh(
+    new THREE.BoxGeometry(0.38, 0.24, 0.01),
+    new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.45, metalness: 0.28 })
+  );
+  pcbMain.position.set(0.18, 0.04, -0.032);
+  const cpuHeatsink = new THREE.Mesh(
+    new THREE.BoxGeometry(0.09, 0.09, 0.014),
+    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.25, metalness: 0.85 })
+  );
+  cpuHeatsink.position.set(0.16, 0.05, -0.04);
+
+  const pcbPsu = new THREE.Mesh(
+    new THREE.BoxGeometry(0.34, 0.22, 0.01),
+    new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.5, metalness: 0.25 })
+  );
+  pcbPsu.position.set(-0.22, 0.04, -0.032);
+  const transformer = new THREE.Mesh(
+    new THREE.BoxGeometry(0.07, 0.075, 0.018),
+    new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.42, metalness: 0.2 })
+  );
+  transformer.position.set(-0.2, 0.05, -0.041);
+
+  const lvdsRibbon = new THREE.Mesh(
+    new THREE.BoxGeometry(0.24, 0.022, 0.004),
+    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.55 })
+  );
+  lvdsRibbon.position.set(0.0, 0.14, -0.028);
+  internalGroup.add(pcbMain, cpuHeatsink, pcbPsu, transformer, lvdsRibbon);
+  group.add(internalGroup);
+
+  // 6. Heavy-Duty Dual-Channel Top & Bottom VESA Steel Keyhole Brackets (matching front, side & rear photos)
+  const REAR_Z = -(BEZEL_D / 2 + REAR_D);
+  const buildKeyholeBracket = (isTop: boolean) => {
+    const bGroup = new THREE.Group();
+    const dir = isTop ? 1 : -1;
+
+    // Protruding keyhole mounting plate above top bezel / below bottom bezel
+    const plateH = 0.064;
+    const plateW = 0.235;
+    const plateY = dir * (H / 2 + plateH / 2 - 0.008);
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(plateW, plateH, 0.01), matBracket);
+    plate.position.set(0, plateY, REAR_Z - 0.012);
+    bGroup.add(plate);
+
+    // Side stiffening return flanges (visible in front.jpg, side.jpg, rear.jpg)
+    [-1, 1].forEach((sx) => {
+      const flange = new THREE.Mesh(new THREE.BoxGeometry(0.01, plateH + 0.01, 0.026), matBracket);
+      flange.position.set(sx * (plateW / 2 - 0.005), plateY, REAR_Z - 0.006);
+      bGroup.add(flange);
+    });
+
+    // Twin Keyhole Mounting Cutouts (dark recessed circle + narrow upper keyhole slot on BOTH sides)
+    [-0.074, 0.074].forEach((kx) => {
+      const holeCircle = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.013, 14), matKeyholeDark);
+      holeCircle.rotation.x = Math.PI / 2;
+      holeCircle.position.set(kx, plateY - dir * 0.006, REAR_Z - 0.012);
+      const holeSlot = new THREE.Mesh(new THREE.BoxGeometry(0.007, 0.016, 0.013), matKeyholeDark);
+      holeSlot.position.set(kx, plateY + dir * 0.006, REAR_Z - 0.012);
+      bGroup.add(holeCircle, holeSlot);
+    });
+
+    // Rear VESA U-Channel vertical legs bolted onto rear housing
+    const legH = isTop ? 0.22 : 0.14;
+    const legCenterY = dir * (H / 2 - legH / 2 + 0.01);
+    [-0.088, 0.088].forEach((lx) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.044, legH, 0.012), matBracket);
+      leg.position.set(lx, legCenterY, REAR_Z - 0.009);
+      bGroup.add(leg);
+    });
+    // Cross bar uniting legs
+    const cross = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.038, 0.012), matBracket);
+    cross.position.set(0, dir * (H / 2 - 0.032), REAR_Z - 0.009);
+    bGroup.add(cross);
+
+    // 4 VESA Hex Mounting Bolts on rear steel flange
+    const boltY = isTop ? [0.165, 0.245] : [-0.255, -0.315];
+    [-0.128, 0.128].forEach((bx) => {
+      // Side bolting ear tab
+      const ear = new THREE.Mesh(new THREE.BoxGeometry(0.042, isTop ? 0.11 : 0.09, 0.008), matBracket);
+      ear.position.set(bx, (boltY[0] + boltY[1]) / 2, REAR_Z - 0.005);
+      bGroup.add(ear);
+      boltY.forEach((by) => {
+        const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.012, 10), matBolt);
+        bolt.rotation.x = Math.PI / 2;
+        bolt.position.set(bx, by, REAR_Z - 0.009);
+        bGroup.add(bolt);
+      });
+    });
+
+    return bGroup;
+  };
+  group.add(buildKeyholeBracket(true), buildKeyholeBracket(false));
+
+  // 7. Recessed Rear Lower-Left I/O Connector Bay + AC Power, HDMI & Cat6 LAN Cables + Cable Clips (matching rear.jpg)
+  const ioZ = REAR_Z - 0.01;
+  // AC IEC C13 Power Plug (far left of rear view -> +X = +0.274)
+  const acPlug = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.048, 0.024), matCable);
+  acPlug.position.set(0.274, -0.105, ioZ);
+  // HDMI / DisplayPort Video Plug (middle-left -> +0.215)
+  const hdmiPlug = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.036, 0.018), matCable);
+  hdmiPlug.position.set(0.215, -0.102, ioZ);
+  // RJ45 Cat6 LAN Ethernet Plug with green link LED (middle-right -> +0.160)
+  const lanPlug = new THREE.Mesh(
+    new THREE.BoxGeometry(0.02, 0.034, 0.018),
+    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.42, metalness: 0.45 })
+  );
+  lanPlug.position.set(0.16, -0.102, ioZ);
+  const lanLed = new THREE.Mesh(
+    new THREE.BoxGeometry(0.006, 0.006, 0.006),
+    new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.5 })
+  );
+  lanLed.position.set(0.151, -0.088, ioZ - 0.008);
+  // Silver USB-A Service Port (right -> +0.104)
+  const usbPort = new THREE.Mesh(
+    new THREE.BoxGeometry(0.022, 0.012, 0.008),
+    new THREE.MeshStandardMaterial({ color: 0xdbe4ef, roughness: 0.25, metalness: 0.85 })
+  );
+  usbPort.position.set(0.104, -0.072, REAR_Z - 0.004);
+  group.add(acPlug, hdmiPlug, lanPlug, lanLed, usbPort);
+
+  // Two Molded Rear Cable-Management Clips holding the bundled AC, HDMI & LAN cables
+  [0.062, 0.014].forEach((cx) => {
+    const clip = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.048, 0.024), matBolt);
+    clip.position.set(cx, -0.172, REAR_Z - 0.011);
+    group.add(clip);
+  });
+
+  // 3 Routed 3D Cables curving from I/O bay through cable clips & exiting behind lower bracket
+  const acCableCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.274, -0.128, ioZ),
+    new THREE.Vector3(0.268, -0.182, ioZ - 0.004),
+    new THREE.Vector3(0.165, -0.192, ioZ - 0.004),
+    new THREE.Vector3(0.04, -0.184, ioZ - 0.002),
+    new THREE.Vector3(-0.018, -0.205, ioZ - 0.004),
+    new THREE.Vector3(-0.028, -0.295, REAR_Z - 0.004),
+  ]);
+  const hdmiCableCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.215, -0.12, ioZ),
+    new THREE.Vector3(0.205, -0.168, ioZ - 0.003),
+    new THREE.Vector3(0.115, -0.174, ioZ - 0.003),
+    new THREE.Vector3(0.02, -0.17, ioZ - 0.002),
+    new THREE.Vector3(-0.024, -0.194, ioZ - 0.003),
+    new THREE.Vector3(-0.036, -0.295, REAR_Z - 0.004),
+  ]);
+  const lanCableCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.16, -0.118, ioZ),
+    new THREE.Vector3(0.148, -0.155, ioZ - 0.003),
+    new THREE.Vector3(0.068, -0.162, ioZ - 0.002),
+    new THREE.Vector3(0.004, -0.162, ioZ - 0.002),
+    new THREE.Vector3(-0.032, -0.188, ioZ - 0.003),
+    new THREE.Vector3(-0.044, -0.295, REAR_Z - 0.004),
+  ]);
+
+  const acCable = new THREE.Mesh(new THREE.TubeGeometry(acCableCurve, 32, 0.0072, 8, false), matCable);
+  const hdmiCable = new THREE.Mesh(new THREE.TubeGeometry(hdmiCableCurve, 28, 0.0052, 8, false), matCable);
+  const lanCable = new THREE.Mesh(
+    new THREE.TubeGeometry(lanCableCurve, 28, 0.0054, 8, false),
+    new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.55, metalness: 0.2 })
+  );
+  group.add(acCable, hdmiCable, lanCable);
+
+  return { group, outerShellMeshes, updater: bidsCanvas.redraw };
+}
+
+// =========================================================================
+// REUSABLE AUTHENTIC BOSCH PRAESENSA PAGING CALL STATION + ZONE KEYPAD
+// (Matches front, side & rear photographic references)
+// =========================================================================
+export interface BuiltPasHardwareUnit {
+  group: THREE.Group;
+  outerShellMeshes: THREE.Mesh[];
+  pttCap?: THREE.Object3D;
+  pttGlowRingMat?: THREE.MeshStandardMaterial;
+  micActiveLedMat?: THREE.MeshStandardMaterial;
+}
+
+export function createBoschPagingStation(maxAnisotropy: number): BuiltPasHardwareUnit {
+  const group = new THREE.Group();
+  const outerShellMeshes: THREE.Mesh[] = [];
+
+  const matGraphite = new THREE.MeshStandardMaterial({
+    color: 0x2a2e34,
+    roughness: 0.46,
+    metalness: 0.35,
+  });
+  const matDarkTrim = new THREE.MeshStandardMaterial({
+    color: 0x15181d,
+    roughness: 0.52,
+    metalness: 0.38,
+  });
+  const matSilver = new THREE.MeshStandardMaterial({
+    color: 0xdbe4ef,
+    roughness: 0.24,
+    metalness: 0.85,
+  });
+  const matFoam = new THREE.MeshStandardMaterial({
+    color: 0x14171b,
+    roughness: 0.92,
+    metalness: 0.04,
+  });
+  const matRedKey = new THREE.MeshStandardMaterial({
+    color: 0xef4444,
+    emissive: 0xdc2626,
+    emissiveIntensity: 0.32,
+    roughness: 0.26,
+    metalness: 0.15,
+  });
+  const matRibbon = new THREE.MeshStandardMaterial({
+    color: 0x64748b,
+    roughness: 0.65,
+    metalness: 0.15,
+  });
+  const matCable = new THREE.MeshStandardMaterial({
+    color: 0x0b0e12,
+    roughness: 0.72,
+    metalness: 0.12,
+  });
+
+  // Helper: Sloped wedge console shell (width W = 0.214, depth D = 0.22, front H = 0.022, rear H = 0.094)
+  const W = 0.214;
+  const D = 0.22;
+  const H_FRONT = 0.022;
+  const H_REAR = 0.094;
+  const SLOPE_ANGLE = Math.atan2(H_REAR - H_FRONT, D); // ~18.1 deg
+  const SLOPE_LEN = Math.hypot(D, H_REAR - H_FRONT);
+
+  const buildWedgeBody = (offsetX: number) => {
+    const wedgeShape = new THREE.Shape();
+    wedgeShape.moveTo(-D / 2, 0);
+    wedgeShape.lineTo(D / 2, 0);
+    wedgeShape.lineTo(D / 2, H_FRONT);
+    wedgeShape.lineTo(-D / 2, H_REAR);
+    wedgeShape.closePath();
+
+    const wedgeGeo = new THREE.ExtrudeGeometry(wedgeShape, {
+      depth: W,
+      bevelEnabled: true,
+      bevelThickness: 0.004,
+      bevelSize: 0.003,
+      bevelSegments: 2,
+    });
+    // Extrude is along +Z; rotate so profile lies in YZ plane and extrude spans X
+    wedgeGeo.rotateY(-Math.PI / 2);
+    wedgeGeo.translate(offsetX + W / 2, 0.006, 0);
+
+    const mesh = new THREE.Mesh(wedgeGeo, matGraphite.clone());
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData.isOuterShell = true;
+    outerShellMeshes.push(mesh);
+    group.add(mesh);
+
+    // 4 Low rubber desk feet under each module
+    [
+      [-W * 0.38, -D * 0.38],
+      [W * 0.38, -D * 0.38],
+      [-W * 0.38, D * 0.38],
+      [W * 0.38, D * 0.38],
+    ].forEach(([fx, fz]) => {
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.009, 0.006, 10), matCable);
+      foot.position.set(offsetX + fx, 0.003, fz);
+      group.add(foot);
+    });
+  };
+
+  const LEFT_X = -0.112;
+  const RIGHT_X = 0.112;
+  buildWedgeBody(LEFT_X);
+  buildWedgeBody(RIGHT_X);
+
+  // Internal PCBs inside both modules (revealed in X-Ray mode!)
+  const pcbCall = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.012, 0.14),
+    new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.45, metalness: 0.25 })
+  );
+  pcbCall.position.set(LEFT_X, 0.028, -0.01);
+  const pcbKey = pcbCall.clone();
+  pcbKey.position.x = RIGHT_X;
+  group.add(pcbCall, pcbKey);
+
+  // --- LEFT MODULE: BOSCH Main Call Station Sloped Faceplate (Touchscreen + PTT + Gooseneck Mic) ---
+  const screenTex = createBoschPagingScreenTexture(maxAnisotropy);
+  const leftFaceGroup = new THREE.Group();
+  leftFaceGroup.position.set(LEFT_X, (H_FRONT + H_REAR) / 2 + 0.009, 0);
+  leftFaceGroup.rotation.x = -Math.PI / 2 + SLOPE_ANGLE;
+
+  const leftFacePlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(W - 0.008, SLOPE_LEN - 0.008),
+    new THREE.MeshStandardMaterial({
+      map: screenTex,
+      emissiveMap: screenTex,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.45,
+      roughness: 0.22,
+      metalness: 0.14,
+    })
+  );
+  leftFacePlane.position.z = 0.0015;
+  leftFaceGroup.add(leftFacePlane);
+
+  // 3D Raised Silver-Bezel PTT Button at lower center of Call Station (Interactive Click Target!)
+  const pttGlowRingMat = new THREE.MeshStandardMaterial({
+    color: 0x38bdf8,
+    emissive: 0x0284c7,
+    emissiveIntensity: 0.75,
+    roughness: 0.25,
+    metalness: 0.2,
+  });
+  const pttGlowRing = new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.032, 0.004), pttGlowRingMat);
+  pttGlowRing.position.set(0, -0.086, 0.0025);
+  pttGlowRing.userData.pasInteractiveAction = 'ptt';
+
+  const pttBezel = new THREE.Mesh(new THREE.BoxGeometry(0.094, 0.024, 0.006), matSilver);
+  pttBezel.position.set(0, -0.086, 0.0045);
+  pttBezel.userData.pasInteractiveAction = 'ptt';
+
+  const pttCap = new THREE.Mesh(new THREE.BoxGeometry(0.086, 0.018, 0.008), matDarkTrim.clone());
+  pttCap.position.set(0, -0.086, 0.0075);
+  pttCap.userData.pasInteractiveAction = 'ptt';
+  leftFaceGroup.add(pttGlowRing, pttBezel, pttCap);
+
+  // Silver recessed microphone base ring at top center of Call Station
+  const micRing = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.019, 0.005, 20), matSilver);
+  micRing.rotation.x = Math.PI / 2;
+  micRing.position.set(0, 0.082, 0.003);
+  leftFaceGroup.add(micRing);
+  group.add(leftFaceGroup);
+
+  // 3D Gooseneck Microphone + Foam Windscreen (curving upward & slightly forward toward operator)
+  const micBaseX = LEFT_X;
+  const micBaseY = 0.087;
+  const micBaseZ = -0.075;
+  const micBoot = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.015, 0.044, 16), matDarkTrim);
+  micBoot.position.set(micBaseX, micBaseY + 0.018, micBaseZ);
+  micBoot.rotation.x = 0.12;
+  group.add(micBoot);
+
+  const gooseneckCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(micBaseX, micBaseY + 0.036, micBaseZ + 0.004),
+    new THREE.Vector3(micBaseX, micBaseY + 0.14, micBaseZ + 0.022),
+    new THREE.Vector3(micBaseX, micBaseY + 0.21, micBaseZ + 0.078),
+    new THREE.Vector3(micBaseX, micBaseY + 0.228, micBaseZ + 0.145),
+    new THREE.Vector3(micBaseX, micBaseY + 0.218, micBaseZ + 0.195),
+  ]);
+  const gooseneckMesh = new THREE.Mesh(new THREE.TubeGeometry(gooseneckCurve, 28, 0.0052, 10, false), matDarkTrim);
+  gooseneckMesh.castShadow = true;
+  gooseneckMesh.userData.pasInteractiveAction = 'ptt';
+  group.add(gooseneckMesh);
+
+  // Illuminated On-Air LED ring collar + acoustic foam windscreen capsule at tip
+  const micActiveLedMat = new THREE.MeshStandardMaterial({
+    color: 0x38bdf8,
+    emissive: 0x0284c7,
+    emissiveIntensity: 0.35,
+    roughness: 0.2,
+    metalness: 0.3,
+  });
+  const micCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.01, 0.018, 16), micActiveLedMat);
+  micCollar.position.set(micBaseX, micBaseY + 0.216, micBaseZ + 0.202);
+  micCollar.rotation.x = Math.PI / 2 + 0.14;
+  micCollar.userData.pasInteractiveAction = 'ptt';
+  const micWindscreen = new THREE.Mesh(new THREE.CapsuleGeometry(0.017, 0.026, 8, 16), matFoam);
+  micWindscreen.position.set(micBaseX, micBaseY + 0.212, micBaseZ + 0.224);
+  micWindscreen.rotation.x = Math.PI / 2 + 0.14;
+  micWindscreen.castShadow = true;
+  micWindscreen.userData.pasInteractiveAction = 'ptt';
+  group.add(micCollar, micWindscreen);
+
+  // --- RIGHT MODULE: BOSCH Zone Selector Keypad Extension (3 Red Confirm Keys + 9 Dark Zone Keys) ---
+  const keypadTex = createBoschPagingKeypadTexture(maxAnisotropy);
+  const rightFaceGroup = new THREE.Group();
+  rightFaceGroup.position.set(RIGHT_X, (H_FRONT + H_REAR) / 2 + 0.009, 0);
+  rightFaceGroup.rotation.x = -Math.PI / 2 + SLOPE_ANGLE;
+
+  const rightFacePlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(W - 0.008, SLOPE_LEN - 0.008),
+    new THREE.MeshStandardMaterial({
+      map: keypadTex,
+      roughness: 0.34,
+      metalness: 0.2,
+    })
+  );
+  rightFacePlane.position.z = 0.0015;
+  rightFaceGroup.add(rightFacePlane);
+
+  // 3 Raised Bright Red Emergency/Confirm Pushbuttons across top row (clickable for All-Zone Emergency Broadcast!)
+  const keyCols = [-0.056, 0, 0.056];
+  keyCols.forEach((kx) => {
+    const clearBase = new THREE.Mesh(
+      new THREE.BoxGeometry(0.044, 0.024, 0.008),
+      new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.18, metalness: 0.2, transparent: true, opacity: 0.65 })
+    );
+    clearBase.position.set(kx, 0.068, 0.005);
+    clearBase.userData.pasInteractiveAction = 'ptt-emergency';
+    const redCap = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.022, 0.01), matRedKey);
+    redCap.position.set(kx, 0.068, 0.011);
+    redCap.userData.pasInteractiveAction = 'ptt-emergency';
+    rightFaceGroup.add(clearBase, redCap);
+  });
+
+  // 3 Rows × 3 Cols of Raised Dark Tactile Zone Selector Keys (clickable to cycle target speaker zone!)
+  [0.026, -0.016, -0.058].forEach((ky) => {
+    keyCols.forEach((kx) => {
+      const keyCap = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.014, 0.007), matDarkTrim);
+      keyCap.position.set(kx, ky, 0.005);
+      keyCap.userData.pasInteractiveAction = 'cycle-zone';
+      rightFaceGroup.add(keyCap);
+    });
+  });
+  group.add(rightFaceGroup);
+
+  // --- REAR FACE: Authentic BOSCH Spec Sticker, Vents, XLR/LAN/Audio/Power Ports + Ribbon Interconnect ---
+  const rearTex = createBoschPagingRearTexture(maxAnisotropy);
+  const leftRearPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(W - 0.014, H_REAR - 0.012),
+    new THREE.MeshStandardMaterial({ map: rearTex, roughness: 0.55, metalness: 0.24 })
+  );
+  leftRearPlane.rotation.y = Math.PI;
+  leftRearPlane.position.set(LEFT_X, H_REAR / 2 + 0.006, -(D / 2 + 0.0045));
+  group.add(leftRearPlane);
+
+  // 3D Rear Ports & Plugged-in Power + OMNEO LAN Cables on Left Call Station
+  const rearZ = -(D / 2 + 0.008);
+  const xlrPort = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.008, 14), matDarkTrim);
+  xlrPort.rotation.x = Math.PI / 2;
+  xlrPort.position.set(LEFT_X - 0.036, 0.028, rearZ);
+  const greenHp = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.004, 0.004, 0.006, 10),
+    new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.4 })
+  );
+  greenHp.rotation.x = Math.PI / 2;
+  greenHp.position.set(LEFT_X - 0.014, 0.028, rearZ);
+  const ethJack = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.014, 0.008), matSilver);
+  ethJack.position.set(LEFT_X + 0.018, 0.028, rearZ);
+  group.add(xlrPort, greenHp, ethJack);
+
+  // Power & OMNEO LAN cables exiting back of Call Station
+  const pwrExitCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(LEFT_X + 0.068, 0.028, rearZ),
+    new THREE.Vector3(LEFT_X + 0.075, 0.022, rearZ - 0.045),
+    new THREE.Vector3(LEFT_X + 0.11, 0.012, rearZ - 0.095),
+  ]);
+  const lanExitCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(LEFT_X + 0.044, 0.028, rearZ),
+    new THREE.Vector3(LEFT_X + 0.055, 0.02, rearZ - 0.048),
+    new THREE.Vector3(LEFT_X + 0.088, 0.012, rearZ - 0.098),
+  ]);
+  group.add(
+    new THREE.Mesh(new THREE.TubeGeometry(pwrExitCurve, 14, 0.0048, 8, false), matCable),
+    new THREE.Mesh(new THREE.TubeGeometry(lanExitCurve, 14, 0.0038, 8, false), matCable)
+  );
+
+  // 3D Grey Flat Ribbon Interconnect Cable linking Call Station to Zone Extension Keypad (matching paging_rear.jpg)
+  const ribbonCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(LEFT_X + W / 2 - 0.006, 0.032, rearZ + 0.004),
+    new THREE.Vector3(0, 0.024, rearZ - 0.024),
+    new THREE.Vector3(RIGHT_X - W / 2 + 0.022, 0.026, rearZ),
+  ]);
+  const ribbonMesh = new THREE.Mesh(new THREE.TubeGeometry(ribbonCurve, 18, 0.005, 6, false), matRibbon);
+  ribbonMesh.scale.set(1, 2.2, 0.55);
+  group.add(ribbonMesh);
+
+  // Rear DB9 vertical port & small white Bosch sticker on Right Zone Extension module
+  const db9Port = new THREE.Mesh(new THREE.BoxGeometry(0.013, 0.028, 0.008), matSilver);
+  db9Port.position.set(RIGHT_X - W / 2 + 0.024, 0.056, rearZ);
+  const smallSticker = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.044, 0.018),
+    new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 })
+  );
+  smallSticker.rotation.y = Math.PI;
+  smallSticker.position.set(RIGHT_X - 0.036, 0.026, -(D / 2 + 0.0048));
+  group.add(db9Port, smallSticker);
+
+  return { group, outerShellMeshes, pttCap, pttGlowRingMat, micActiveLedMat };
+}
+
+// =========================================================================
+// REUSABLE AUTHENTIC BOSCH 42U PAS / AAS AMPLIFIER RACK
+// (Matches rack_front.jpg, rack_side.jpg & rack_rear.webp)
+// =========================================================================
+export function createBoschPasRack(maxAnisotropy: number): BuiltPasHardwareUnit {
+  const group = new THREE.Group();
+  const outerShellMeshes: THREE.Mesh[] = [];
+
+  const RACK_W = 0.68;
+  const RACK_H = 2.08;
+  const RACK_D = 0.72;
+  const INNER_W = 0.56;
+
+  const matFrame = new THREE.MeshStandardMaterial({
+    color: 0x15181d,
+    roughness: 0.48,
+    metalness: 0.62,
+  });
+  const matSidePanel = new THREE.MeshStandardMaterial({
+    color: 0x1e2228,
+    roughness: 0.52,
+    metalness: 0.55,
+  });
+  const matChassis = new THREE.MeshStandardMaterial({
+    color: 0x1b2028,
+    roughness: 0.44,
+    metalness: 0.66,
+  });
+  const matSilverHandle = new THREE.MeshStandardMaterial({
+    color: 0xdbe4ef,
+    roughness: 0.24,
+    metalness: 0.86,
+  });
+  const matBlueLan = new THREE.MeshStandardMaterial({
+    color: 0x0284c7,
+    emissive: 0x0369a1,
+    emissiveIntensity: 0.16,
+    roughness: 0.44,
+  });
+  const matBlackCable = new THREE.MeshStandardMaterial({
+    color: 0x0b0e12,
+    roughness: 0.72,
+    metalness: 0.12,
+  });
+  const matRedCable = new THREE.MeshStandardMaterial({
+    color: 0xdc2626,
+    roughness: 0.55,
+  });
+  const matWhitePlug = new THREE.MeshStandardMaterial({
+    color: 0xf1f5f9,
+    roughness: 0.35,
+    metalness: 0.12,
+  });
+  const matBlueCee = new THREE.MeshStandardMaterial({
+    color: 0x1d4ed8,
+    roughness: 0.32,
+    metalness: 0.15,
+  });
+  const matCreamTerm = new THREE.MeshStandardMaterial({
+    color: 0xe7e5d0,
+    roughness: 0.55,
+    metalness: 0.12,
+  });
+
+  // 1. Structural Matte-Black 42U Cabinet Frame (Base, Roof, 4 Corner Posts, 19" Rails)
+  const basePlate = new THREE.Mesh(new THREE.BoxGeometry(RACK_W, 0.055, RACK_D), matFrame);
+  basePlate.position.y = 0.0275;
+  basePlate.receiveShadow = true;
+  const roofPlate = new THREE.Mesh(new THREE.BoxGeometry(RACK_W, 0.055, RACK_D), matFrame);
+  roofPlate.position.y = RACK_H - 0.0275;
+  roofPlate.castShadow = true;
+  group.add(basePlate, roofPlate);
+
+  // 4 Vertical Corner Columns
+  const colGeo = new THREE.BoxGeometry(0.055, RACK_H, 0.055);
+  [
+    [-RACK_W / 2 + 0.0275, -RACK_D / 2 + 0.0275],
+    [RACK_W / 2 - 0.0275, -RACK_D / 2 + 0.0275],
+    [-RACK_W / 2 + 0.0275, RACK_D / 2 - 0.0275],
+    [RACK_W / 2 - 0.0275, RACK_D / 2 - 0.0275],
+  ].forEach(([cx, cz]) => {
+    const post = new THREE.Mesh(colGeo, matFrame);
+    post.position.set(cx, RACK_H / 2, cz);
+    post.castShadow = true;
+    group.add(post);
+  });
+
+  // Left & Right Solid Matte-Black Side Panels with Top Cylinder Lock (matching rack_side.jpg, X-Ray translucent!)
+  [-1, 1].forEach((side) => {
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.016, RACK_H - 0.12, RACK_D - 0.1),
+      matSidePanel.clone()
+    );
+    panel.position.set(side * (RACK_W / 2 - 0.008), RACK_H / 2, 0);
+    panel.castShadow = true;
+    panel.receiveShadow = true;
+    panel.userData.isOuterShell = true;
+    outerShellMeshes.push(panel);
+    group.add(panel);
+
+    // Chrome cam lock near upper center of side door
+    const lock = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.01, 14), matSilverHandle);
+    lock.rotation.z = Math.PI / 2;
+    lock.position.set(side * (RACK_W / 2 + 0.002), RACK_H - 0.24, 0);
+    group.add(lock);
+  });
+
+  // Vertical 19" inner mounting rails
+  [-1, 1].forEach((sx) => {
+    const railF = new THREE.Mesh(new THREE.BoxGeometry(0.022, RACK_H - 0.12, 0.016), matChassis);
+    railF.position.set(sx * (INNER_W / 2 + 0.005), RACK_H / 2, RACK_D / 2 - 0.075);
+    const railR = railF.clone();
+    railR.position.z = -(RACK_D / 2 - 0.09);
+    group.add(railF, railR);
+  });
+
+  // 2. TOP UNIT: BOSCH Praesideo/Praesensa Network Controller (Green LCD + Silver Pill Bezel + Rotary Dial)
+  const FRONT_Z = RACK_D / 2 - 0.068;
+  const REAR_Z = -(RACK_D / 2 - 0.085);
+  const UNIT_D = FRONT_Z - REAR_Z;
+  const UNIT_CENTER_Z = (FRONT_Z + REAR_Z) / 2;
+
+  const ctrlTex = createBoschRackControllerTexture(maxAnisotropy);
+  const ctrlFrontMat = new THREE.MeshStandardMaterial({
+    map: ctrlTex,
+    emissiveMap: ctrlTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.42,
+    roughness: 0.32,
+    metalness: 0.4,
+  });
+  const ctrlBox = new THREE.Mesh(
+    new THREE.BoxGeometry(INNER_W, 0.155, UNIT_D),
+    [matChassis, matChassis, matChassis, matChassis, ctrlFrontMat, matChassis]
+  );
+  ctrlBox.position.set(0, 1.91, UNIT_CENTER_Z);
+  group.add(ctrlBox);
+
+  // 3D Protruding Silver Rotary Dial on BOSCH Network Controller
+  const ctrlKnob = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.02, 16), matSilverHandle);
+  ctrlKnob.rotation.x = Math.PI / 2;
+  ctrlKnob.position.set(0.078, 1.922, FRONT_Z + 0.01);
+  group.add(ctrlKnob);
+
+  // 3. U39: Silver 1U Managed OMNEO 24-Port GbE Switch + Looping Blue Cat6 Patch Cables (matching rack_front.jpg!)
+  const swTex = createBoschRackSwitchTexture(maxAnisotropy);
+  const swFrontMat = new THREE.MeshStandardMaterial({
+    map: swTex,
+    emissiveMap: swTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.25,
+    roughness: 0.28,
+    metalness: 0.62,
+  });
+  const swBox = new THREE.Mesh(
+    new THREE.BoxGeometry(INNER_W, 0.062, UNIT_D),
+    [matSilverHandle, matSilverHandle, matChassis, matChassis, swFrontMat, matChassis]
+  );
+  swBox.position.set(0, 1.755, UNIT_CENTER_Z);
+  group.add(swBox);
+
+  // Lush bundle of 6 vivid blue Cat6 patch cords arching gracefully above the Silver OMNEO Switch
+  for (let i = 0; i < 6; i++) {
+    const startX = 0.01 + i * 0.036;
+    const archCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(startX, 1.762, FRONT_Z + 0.008),
+      new THREE.Vector3(startX - 0.02, 1.795 + (i % 3) * 0.01, FRONT_Z + 0.034),
+      new THREE.Vector3(i < 2 ? -0.18 : 0.22, 1.805 + (i % 2) * 0.012, FRONT_Z + 0.026),
+      new THREE.Vector3(i < 2 ? -0.265 : 0.265, 1.785, FRONT_Z - 0.01),
+    ]);
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(archCurve, 18, 0.0048, 7, false), matBlueLan));
+  }
+
+  // 4. 10× 1U + 1× 2U BOSCH Multi-Channel 100V Power Amplifiers with Iconic Curved Silver Rack Handles!
+  const amp1UTex = createBoschAmpFrontTexture(maxAnisotropy, false);
+  const amp2UTex = createBoschAmpFrontTexture(maxAnisotropy, true);
+  const ampRearTex = createBoschAmpRearTexture(maxAnisotropy);
+
+  const amp1UMat = new THREE.MeshStandardMaterial({
+    map: amp1UTex,
+    emissiveMap: amp1UTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.35,
+    roughness: 0.32,
+    metalness: 0.42,
+  });
+  const amp2UMat = new THREE.MeshStandardMaterial({
+    map: amp2UTex,
+    emissiveMap: amp2UTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.35,
+    roughness: 0.32,
+    metalness: 0.42,
+  });
+  const ampRearMat = new THREE.MeshStandardMaterial({
+    map: ampRearTex,
+    roughness: 0.48,
+    metalness: 0.35,
+  });
+
+  const addBoschAmpUnit = (yCenter: number, height: number, is2U = false) => {
+    const ampMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(INNER_W, height, UNIT_D),
+      [matChassis, matChassis, matChassis, matChassis, is2U ? amp2UMat : amp1UMat, ampRearMat]
+    );
+    ampMesh.position.set(0, yCenter, UNIT_CENTER_Z);
+    group.add(ampMesh);
+
+    // Iconic Curved Brushed-Silver C-Handles/Ears on Left & Right of every BOSCH Amplifier
+    [-1, 1].forEach((sx) => {
+      const hOuter = new THREE.Mesh(new THREE.BoxGeometry(0.026, height - 0.008, 0.022), matSilverHandle);
+      hOuter.position.set(sx * (INNER_W / 2 - 0.018), yCenter, FRONT_Z + 0.008);
+      const hInner = new THREE.Mesh(new THREE.BoxGeometry(0.01, height - 0.018, 0.012), matFrame);
+      hInner.position.set(sx * (INNER_W / 2 - 0.018), yCenter, FRONT_Z + 0.016);
+      group.add(hOuter, hInner);
+    });
+  };
+
+  // Stack 10× 1U BOSCH Amplifiers from y = 1.67 down to y = 1.13
+  for (let i = 0; i < 10; i++) {
+    addBoschAmpUnit(1.67 - i * 0.06, 0.052, false);
+  }
+  // 1× 2U Larger Backup BOSCH Amplifier below them
+  addBoschAmpUnit(1.032, 0.104, true);
+
+  // 1U Slim BOSCH Monitor / Line Supervision Bar
+  const monBar = new THREE.Mesh(new THREE.BoxGeometry(INNER_W, 0.044, UNIT_D * 0.72), matFrame);
+  monBar.position.set(0, 0.94, UNIT_CENTER_Z + 0.06);
+  group.add(monBar);
+
+  // 5. LOWER OPEN WIRING & POWER BAY (6× Blue-White DELTA DIN-Rail PSUs + 2× Blue/White CEE Industrial Plugs!)
+  const backGrid = new THREE.Mesh(
+    new THREE.BoxGeometry(INNER_W - 0.06, 0.42, 0.014),
+    new THREE.MeshStandardMaterial({ color: 0x0f1318, roughness: 0.65, metalness: 0.55 })
+  );
+  backGrid.position.set(0, 0.66, 0.02);
+  group.add(backGrid);
+
+  // 6× Blue-and-White DELTA DIN-Rail 48V DC PSUs in 2 rows × 3 columns (exact match to rack_front.jpg!)
+  const deltaTex = createBoschDeltaPsuTexture(maxAnisotropy);
+  const deltaFrontMat = new THREE.MeshStandardMaterial({
+    map: deltaTex,
+    roughness: 0.34,
+    metalness: 0.25,
+  });
+  const deltaRows = [0.76, 0.58];
+  const deltaCols = [-0.15, -0.03, 0.09];
+  deltaRows.forEach((dy) => {
+    deltaCols.forEach((dx) => {
+      const psu = new THREE.Mesh(
+        new THREE.BoxGeometry(0.082, 0.12, 0.11),
+        [matSilverHandle, matSilverHandle, matSilverHandle, matSilverHandle, deltaFrontMat, matChassis]
+      );
+      psu.position.set(dx, dy, 0.09);
+      group.add(psu);
+    });
+  });
+
+  // Lower Deck: 2× Iconic White-and-Blue IEC 60309 Industrial CEE Power Plugs + Breaker Block (matching rack_front.jpg)
+  [
+    [-0.1, 0.125, 0.14, 0.25],
+    [-0.08, 0.09, 0.22, -0.18],
+  ].forEach(([px, py, pz, ry]) => {
+    const ceeGroup = new THREE.Group();
+    ceeGroup.position.set(px, py, pz);
+    ceeGroup.rotation.y = ry;
+    const whiteBody = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.03, 0.12, 16), matWhitePlug);
+    whiteBody.rotation.z = Math.PI / 2;
+    const blueCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.058, 16), matBlueCee);
+    blueCollar.rotation.z = Math.PI / 2;
+    blueCollar.position.x = -0.055;
+    ceeGroup.add(whiteBody, blueCollar);
+    group.add(ceeGroup);
+  });
+
+  // Dark angled multi-zone breaker/relay distribution module on lower floor
+  const breakerBox = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.14), matFrame);
+  breakerBox.position.set(0.05, 0.18, 0.1);
+  breakerBox.rotation.x = 0.45;
+  group.add(breakerBox);
+
+  // Front-right vertical blue Cat6 & black power loom sweeping down into lower bay
+  const frontRightLoom = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.24, 1.74, FRONT_Z - 0.03),
+    new THREE.Vector3(0.25, 1.15, FRONT_Z - 0.04),
+    new THREE.Vector3(0.23, 0.62, 0.16),
+    new THREE.Vector3(0.18, 0.24, 0.18),
+    new THREE.Vector3(0.08, 0.1, 0.19),
+  ]);
+  group.add(new THREE.Mesh(new THREE.TubeGeometry(frontRightLoom, 28, 0.011, 8, false), matBlueLan));
+
+  // 6. AUTHENTIC REAR CABLING & 100V PHOENIX BUS (Exact match to rack_rear.webp!)
+  // Right-side (viewer right from rear -> local -X) Cascading Blue Cat6 OMNEO Daisy-Chain Loops
+  for (let i = 0; i < 10; i++) {
+    const y0 = 1.74 - i * 0.068;
+    const y1 = y0 - 0.072;
+    const loopCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.23, y0, REAR_Z - 0.008),
+      new THREE.Vector3(-0.275, (y0 + y1) / 2, REAR_Z - 0.044),
+      new THREE.Vector3(-0.225, y1, REAR_Z - 0.012),
+    ]);
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(loopCurve, 14, 0.0062, 7, false), matBlueLan));
+  }
+  // Trunk descending from blue loops into lower bay
+  const rearBlueTrunk = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.23, 1.04, REAR_Z - 0.025),
+    new THREE.Vector3(-0.24, 0.72, REAR_Z - 0.03),
+    new THREE.Vector3(-0.18, 0.36, REAR_Z - 0.02),
+    new THREE.Vector3(-0.08, 0.22, REAR_Z - 0.015),
+  ]);
+  group.add(new THREE.Mesh(new THREE.TubeGeometry(rearBlueTrunk, 20, 0.0095, 8, false), matBlueLan));
+
+  // Left-side (viewer left from rear -> local +X) Vertical Black Power + Red/Black 100V Speaker Harness
+  const rearLeftBlack = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.245, 1.88, REAR_Z - 0.015),
+    new THREE.Vector3(0.255, 1.32, REAR_Z - 0.022),
+    new THREE.Vector3(0.25, 0.72, REAR_Z - 0.02),
+    new THREE.Vector3(0.23, 0.34, REAR_Z - 0.015),
+  ]);
+  const rearLeftRed = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.23, 1.62, REAR_Z - 0.016),
+    new THREE.Vector3(0.24, 1.05, REAR_Z - 0.024),
+    new THREE.Vector3(0.235, 0.56, REAR_Z - 0.022),
+    new THREE.Vector3(0.18, 0.24, REAR_Z - 0.016),
+  ]);
+  group.add(
+    new THREE.Mesh(new THREE.TubeGeometry(rearLeftBlack, 24, 0.011, 8, false), matBlackCable),
+    new THREE.Mesh(new THREE.TubeGeometry(rearLeftRed, 22, 0.0075, 8, false), matRedCable)
+  );
+
+  // Lower Rear Dual Horizontal 100V Line Screw-Terminal Distribution Strips (matching bottom of rack_rear.webp!)
+  [0.34, 0.21].forEach((ty) => {
+    const railBar = new THREE.Mesh(new THREE.BoxGeometry(INNER_W, 0.044, 0.018), matFrame);
+    railBar.position.set(0, ty, REAR_Z + 0.012);
+    const termStrip = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.028, 0.024), matCreamTerm);
+    termStrip.position.set(0.01, ty, REAR_Z - 0.006);
+    group.add(railBar, termStrip);
+  });
+
+  return { group, outerShellMeshes };
+}
+
+// =========================================================================
+// 5. FIDS STANDING TOTEM KIOSK & MASTER CLOCK (Standalone System)
+// =========================================================================
+export function buildFidsSystem(maxAnisotropy: number): BuiltEquipmentUnit {
   const root = new THREE.Group();
   const subComponents: TaggedSubComponent[] = [];
   const outerShellMeshes: THREE.Mesh[] = [];
   const animatedParts: BuiltEquipmentUnit['animatedParts'] = {};
 
-  const matFrame = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4, metalness: 0.6 });
-  const matMetal = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.32, metalness: 0.82 });
-
-  // Outer Gantry Support Frame (Outer Shell)
-  const postL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.1, 16), matMetal.clone());
-  postL.position.set(-1.55, 1.55, 0);
-  const postR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.1, 16), matMetal.clone());
-  postR.position.set(1.55, 1.55, 0);
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(3.35, 0.14, 0.22), matMetal.clone());
-  beam.position.set(0, 3.05, 0);
-  [postL, postR, beam].forEach((m) => {
-    m.userData.isOuterShell = true;
-    outerShellMeshes.push(m);
-    root.add(m);
+  // Calibrated PBR materials matching reference photos (glossy piano-black glass front vs satin charcoal steel chassis)
+  const matKioskSteel = new THREE.MeshStandardMaterial({
+    color: 0x1a1e24,
+    roughness: 0.44,
+    metalness: 0.56,
   });
-  tagInteractive(postL, 'sys-fids-pas');
-  tagInteractive(postR, 'sys-fids-pas');
-  tagInteractive(beam, 'sys-fids-pas');
+  const matPianoGlass = new THREE.MeshPhysicalMaterial({
+    color: 0x05070b,
+    roughness: 0.08,
+    metalness: 0.14,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.06,
+  });
+  const matPlinth = new THREE.MeshStandardMaterial({
+    color: 0x11151b,
+    roughness: 0.52,
+    metalness: 0.48,
+  });
+  const matChrome = new THREE.MeshStandardMaterial({
+    color: 0xdbe4ef,
+    roughness: 0.2,
+    metalness: 0.92,
+  });
+  const matCable = new THREE.MeshStandardMaterial({
+    color: 0x0b0e12,
+    roughness: 0.72,
+    metalness: 0.1,
+  });
 
-  // AV-01: FIDS Displays + Media Player
-  const fids = makeSubGroup('sys-fids-pas', 'comp-fids-displays', [-0.25, 2.25, 0]);
-  const fidsChassis = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.18, 0.14), matFrame);
+  // Helper to build the distinctive rounded-shoulder standing kiosk silhouette (ExtrudeGeometry)
+  const createKioskArchShape = (w: number, h: number, cornerR: number): THREE.Shape => {
+    const hw = w / 2;
+    const s = new THREE.Shape();
+    s.moveTo(-hw, 0);
+    s.lineTo(hw, 0);
+    s.lineTo(hw, h - cornerR);
+    s.absarc(hw - cornerR, h - cornerR, cornerR, 0, Math.PI / 2, false);
+    s.lineTo(-hw + cornerR, h);
+    s.absarc(-hw + cornerR, h - cornerR, cornerR, Math.PI / 2, Math.PI, false);
+    s.closePath();
+    return s;
+  };
+
+  // Centered directly at origin so FIDS + Master Clock inspect cleanly on their own stage
+  const KIOSK_X = 0;
+  const KIOSK_W = 0.94;
+  const KIOSK_H = 2.34;
+  const KIOSK_D = 0.23;
+  const CORNER_R = 0.21;
+
+  // --- OUTER SHELL: Freestanding Rounded-Top Kiosk Cabinet + Heavy Floor Base Plinth ---
+  const kioskShell = new THREE.Group();
+  kioskShell.position.set(KIOSK_X, 0, 0);
+
+  // Heavy Floor Plinth Flange (flush on y = 0 with 4 subtle rubber leveling pads)
+  const plinthShape = new THREE.Shape();
+  const pw = 0.51;
+  const pd = 0.165;
+  const pr = 0.032;
+  plinthShape.moveTo(-pw + pr, -pd);
+  plinthShape.lineTo(pw - pr, -pd);
+  plinthShape.quadraticCurveTo(pw, -pd, pw, -pd + pr);
+  plinthShape.lineTo(pw, pd - pr);
+  plinthShape.quadraticCurveTo(pw, pd, pw - pr, pd);
+  plinthShape.lineTo(-pw + pr, pd);
+  plinthShape.quadraticCurveTo(-pw, pd, -pw, pd - pr);
+  plinthShape.lineTo(-pw, -pd + pr);
+  plinthShape.quadraticCurveTo(-pw, -pd, -pw + pr, -pd);
+  const plinthGeo = new THREE.ExtrudeGeometry(plinthShape, {
+    depth: 0.044,
+    bevelEnabled: true,
+    bevelThickness: 0.008,
+    bevelSize: 0.008,
+    bevelSegments: 3,
+  });
+  plinthGeo.rotateX(-Math.PI / 2);
+  const plinthMesh = new THREE.Mesh(plinthGeo, matPlinth);
+  plinthMesh.position.y = 0.012;
+  plinthMesh.castShadow = true;
+  plinthMesh.receiveShadow = true;
+  kioskShell.add(plinthMesh);
+
+  // 4 Low-profile rubber feet touching y = 0
+  const footGeo = new THREE.CylinderGeometry(0.024, 0.026, 0.014, 12);
+  [
+    [-0.42, -0.11],
+    [0.42, -0.11],
+    [-0.42, 0.11],
+    [0.42, 0.11],
+  ].forEach(([fx, fz]) => {
+    const foot = new THREE.Mesh(footGeo, matCable);
+    foot.position.set(fx, 0.007, fz);
+    kioskShell.add(foot);
+  });
+
+  // Main Extruded Kiosk Steel Housing (Front/Side/Rear silhouette with smooth curved top shoulders)
+  const bodyShape = createKioskArchShape(KIOSK_W, KIOSK_H, CORNER_R);
+  const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, {
+    depth: KIOSK_D,
+    bevelEnabled: true,
+    bevelThickness: 0.014,
+    bevelSize: 0.012,
+    bevelSegments: 4,
+    curveSegments: 20,
+  });
+  bodyGeo.translate(0, 0.055, -KIOSK_D / 2);
+  const bodyMesh = new THREE.Mesh(bodyGeo, matKioskSteel);
+  bodyMesh.castShadow = true;
+  bodyMesh.receiveShadow = true;
+  kioskShell.add(bodyMesh);
+
+  // Glossy Piano-Black Tempered Glass Front Fascia Panel
+  const fasciaShape = createKioskArchShape(KIOSK_W - 0.022, KIOSK_H - 0.022, CORNER_R - 0.01);
+  const fasciaGeo = new THREE.ExtrudeGeometry(fasciaShape, {
+    depth: 0.012,
+    bevelEnabled: true,
+    bevelThickness: 0.004,
+    bevelSize: 0.004,
+    bevelSegments: 2,
+    curveSegments: 20,
+  });
+  fasciaGeo.translate(0, 0.066, KIOSK_D / 2 + 0.008);
+  const fasciaMesh = new THREE.Mesh(fasciaGeo, matPianoGlass);
+  kioskShell.add(fasciaMesh);
+
+  // Authentic Rear Service Panel (Spec Barcode Sticker, Lockable Hatch, Perforated Vents, Lower Door)
+  const rearTex = createFidsRearPanelTexture(maxAnisotropy);
+  const rearPanelMat = new THREE.MeshStandardMaterial({
+    map: rearTex,
+    roughness: 0.48,
+    metalness: 0.45,
+  });
+  const rearPanel = new THREE.Mesh(new THREE.PlaneGeometry(KIOSK_W - 0.06, KIOSK_H - 0.24), rearPanelMat);
+  rearPanel.rotation.y = Math.PI;
+  rearPanel.position.set(0, 0.06 + (KIOSK_H - 0.24) / 2, -KIOSK_D / 2 - 0.018);
+  kioskShell.add(rearPanel);
+
+  // 3D Chrome Cylindrical Cam-Key Lock on Rear Media-Player Service Hatch
+  const lockRing = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.008, 16), matChrome);
+  lockRing.rotation.x = Math.PI / 2;
+  lockRing.position.set(0.115, 1.24, -KIOSK_D / 2 - 0.021);
+  const lockKeyhole = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.012, 0.01), matCable);
+  lockKeyhole.position.set(0.115, 1.24, -KIOSK_D / 2 - 0.024);
+  kioskShell.add(lockRing, lockKeyhole);
+
+  // Bottom Rear Twin Rubber Cable Grommets & Looped Power/LAN Cable (matching fids_rear.jpg)
+  const grommetGeo = new THREE.TorusGeometry(0.018, 0.005, 8, 16);
+  const grommetL = new THREE.Mesh(grommetGeo, matCable);
+  grommetL.position.set(0.01, 0.125, -KIOSK_D / 2 - 0.019);
+  const grommetR = new THREE.Mesh(grommetGeo, matCable);
+  grommetR.position.set(0.24, 0.125, -KIOSK_D / 2 - 0.019);
+  const rearCableCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.01, 0.125, -KIOSK_D / 2 - 0.018),
+    new THREE.Vector3(0.05, 0.055, -KIOSK_D / 2 - 0.048),
+    new THREE.Vector3(0.17, 0.052, -KIOSK_D / 2 - 0.052),
+    new THREE.Vector3(0.24, 0.125, -KIOSK_D / 2 - 0.018),
+  ]);
+  const rearCable = new THREE.Mesh(new THREE.TubeGeometry(rearCableCurve, 20, 0.007, 8, false), matCable);
+  kioskShell.add(grommetL, grommetR, rearCable);
+
+  kioskShell.traverse((obj) => {
+    if ((obj as THREE.Mesh).isMesh) {
+      obj.userData.isOuterShell = true;
+      outerShellMeshes.push(obj as THREE.Mesh);
+    }
+  });
+  tagInteractive(kioskShell, 'sys-fids-pas', 'comp-fids-displays');
+  root.add(kioskShell);
+
+  // --- AV-01: Portrait 55" Industrial FIDS LCD Display + Internal Media Player ---
+  const fids = makeSubGroup('sys-fids-pas', 'comp-fids-displays', [KIOSK_X, 1.48, 0.03]);
   const fidsCanvas = createFidsCanvasTexture(maxAnisotropy);
   animatedParts.fidsUpdater = fidsCanvas.redraw;
-  const fidsFront = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.18, 1.06),
-    new THREE.MeshStandardMaterial({ map: fidsCanvas.texture, emissiveMap: fidsCanvas.texture, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.2 })
+
+  const lcdBezel = new THREE.Mesh(
+    new THREE.BoxGeometry(0.77, 1.13, 0.022),
+    new THREE.MeshStandardMaterial({ color: 0x0a0d12, roughness: 0.25, metalness: 0.5 })
   );
-  fidsFront.position.z = 0.075;
-  const fidsBack = fidsFront.clone();
-  fidsBack.rotation.y = Math.PI;
-  fidsBack.position.z = -0.075;
-  const mediaPlayer = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.26), new THREE.MeshStandardMaterial({ color: 0x3730a3, roughness: 0.35, metalness: 0.5 }));
-  mediaPlayer.position.set(0, -0.68, -0.05);
-  fids.group.add(fidsChassis, fidsFront, fidsBack, mediaPlayer);
+  lcdBezel.position.set(0, 0, KIOSK_D / 2 - 0.012);
+
+  const fidsFront = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.74, 1.1),
+    new THREE.MeshStandardMaterial({
+      map: fidsCanvas.texture,
+      emissiveMap: fidsCanvas.texture,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.62,
+      roughness: 0.14,
+      metalness: 0.08,
+    })
+  );
+  fidsFront.position.set(0, 0, KIOSK_D / 2 + 0.002);
+
+  // Internal Industrial Thin-Client FIDS Media Player & VESA Bracket (revealed in X-Ray & Exploded View)
+  const vesaBracket = new THREE.Mesh(
+    new THREE.BoxGeometry(0.46, 0.46, 0.018),
+    new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.35, metalness: 0.78 })
+  );
+  vesaBracket.position.set(0, 0, 0.01);
+
+  const mediaPlayer = new THREE.Mesh(
+    new THREE.BoxGeometry(0.28, 0.2, 0.058),
+    new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.32, metalness: 0.62 })
+  );
+  mediaPlayer.position.set(-0.08, -0.18, -0.048);
+  const mpLed = new THREE.Mesh(
+    new THREE.BoxGeometry(0.024, 0.012, 0.01),
+    new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.4 })
+  );
+  mpLed.position.set(-0.17, -0.13, -0.079);
+
+  // RJ45 LAN Port Jack on FIDS Monitor / Media Player
+  const matRj45Boot = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.45 });
+  const monRj45Jack = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.024, 0.026), matRj45Boot);
+  monRj45Jack.position.set(-0.08, -0.285, -0.05);
+
+  // Internal 8-Port Gigabit LAN Switch mounted inside the FIDS Kiosk cavity (connected via LAN cables to FIDS Monitor & Master Clock)
+  const switchTex = createFidsInternalSwitchTexture(maxAnisotropy);
+  const matSwitchBody = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.36, metalness: 0.72 });
+  const matSwitchFace = new THREE.MeshStandardMaterial({
+    map: switchTex,
+    emissiveMap: switchTex,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.42,
+    roughness: 0.28,
+    metalness: 0.45,
+  });
+  const switchShelf = new THREE.Mesh(
+    new THREE.BoxGeometry(0.42, 0.014, 0.13),
+    new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.42, metalness: 0.75 })
+  );
+  switchShelf.position.set(0, -0.618, -0.025);
+
+  const lanSwitch = new THREE.Mesh(
+    new THREE.BoxGeometry(0.32, 0.056, 0.11),
+    [matSwitchBody, matSwitchBody, matSwitchBody, matSwitchBody, matSwitchFace, matSwitchFace]
+  );
+  lanSwitch.position.set(0, -0.582, -0.025);
+
+  // Color-coded Cat6 LAN Cables with RJ45 Boots inside FIDS Kiosk:
+  // 1) Blue Cat6 LAN Cable: Internal Switch (Port 2: MON) -> FIDS Monitor / Media Player
+  const matLanBlue = new THREE.MeshStandardMaterial({
+    color: 0x0284c7,
+    emissive: 0x0284c7,
+    emissiveIntensity: 0.22,
+    roughness: 0.42,
+  });
+  // 2) Amber/Yellow Cat6 LAN Cable: Internal Switch (Port 3: CLK) -> Top-Right Master Clock Unit
+  const matLanClock = new THREE.MeshStandardMaterial({
+    color: 0xf59e0b,
+    emissive: 0xd97706,
+    emissiveIntensity: 0.25,
+    roughness: 0.42,
+  });
+  // 3) Emerald Uplink Cat6 LAN Cable: Internal Switch (Port 1: UPLINK) -> Bottom Floor Feed (Server Room AODB/NTP)
+  const matLanUplink = new THREE.MeshStandardMaterial({
+    color: 0x10b981,
+    emissive: 0x059669,
+    emissiveIntensity: 0.2,
+    roughness: 0.45,
+  });
+
+  // Cable 1: Switch -> Monitor FIDS / Media Player (+ short video/control jumper into LCD backplane)
+  const lanToMonitorCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.012, -0.58, -0.082),
+    new THREE.Vector3(-0.02, -0.54, -0.105),
+    new THREE.Vector3(-0.12, -0.44, -0.095),
+    new THREE.Vector3(-0.09, -0.34, -0.072),
+    new THREE.Vector3(-0.08, -0.285, -0.052),
+  ]);
+  const lanToMonitorCable = new THREE.Mesh(
+    new THREE.TubeGeometry(lanToMonitorCurve, 28, 0.0068, 8, false),
+    matLanBlue
+  );
+  const monToLcdCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.02, -0.12, -0.048),
+    new THREE.Vector3(0.02, -0.06, 0.015),
+    new THREE.Vector3(0.0, -0.02, 0.085),
+  ]);
+  const monToLcdCable = new THREE.Mesh(
+    new THREE.TubeGeometry(monToLcdCurve, 18, 0.0065, 8, false),
+    matLanBlue
+  );
+
+  // Cable 2: Switch -> Master Clock Unit (routed cleanly up the right internal chassis channel to top-right clock)
+  const lanToClockCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0.018, -0.58, -0.082),
+    new THREE.Vector3(0.06, -0.56, -0.105),
+    new THREE.Vector3(0.24, -0.45, -0.075),
+    new THREE.Vector3(0.27, 0.02, -0.045),
+    new THREE.Vector3(0.26, 0.46, -0.01),
+    new THREE.Vector3(0.21, 0.64, 0.035),
+    new THREE.Vector3(0.155, 0.675, 0.072),
+  ]);
+  const lanToClockCable = new THREE.Mesh(
+    new THREE.TubeGeometry(lanToClockCurve, 40, 0.0068, 8, false),
+    matLanClock
+  );
+
+  // Cable 3: Switch Port 1 (Uplink) -> Bottom Kiosk Base Cable Channel (to Airport Server Room)
+  const lanUplinkCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.042, -0.58, -0.082),
+    new THREE.Vector3(-0.05, -0.66, -0.102),
+    new THREE.Vector3(-0.02, -0.98, -0.085),
+    new THREE.Vector3(0.01, -1.32, -0.095),
+  ]);
+  const lanUplinkCable = new THREE.Mesh(
+    new THREE.TubeGeometry(lanUplinkCurve, 24, 0.0068, 8, false),
+    matLanUplink
+  );
+
+  // Molded RJ45 Plug Boots at Switch Ports 1, 2, 3
+  const bootGeo = new THREE.BoxGeometry(0.016, 0.016, 0.022);
+  const bootUplink = new THREE.Mesh(bootGeo, matLanUplink);
+  bootUplink.position.set(-0.042, -0.58, -0.082);
+  const bootMonitor = new THREE.Mesh(bootGeo, matLanBlue);
+  bootMonitor.position.set(-0.012, -0.58, -0.082);
+  const bootClock = new THREE.Mesh(bootGeo, matLanClock);
+  bootClock.position.set(0.018, -0.58, -0.082);
+
+  fids.group.add(
+    lcdBezel,
+    fidsFront,
+    vesaBracket,
+    mediaPlayer,
+    mpLed,
+    monRj45Jack,
+    switchShelf,
+    lanSwitch,
+    lanToMonitorCable,
+    monToLcdCable,
+    lanToClockCable,
+    lanUplinkCable,
+    bootUplink,
+    bootMonitor,
+    bootClock
+  );
   tagInteractive(fids.group, 'sys-fids-pas', 'comp-fids-displays', fids.subsystemLayer);
   subComponents.push(fids);
   root.add(fids.group);
 
-  // AV-02: Master Clock Unit
-  const clock = makeSubGroup('sys-fids-pas', 'comp-master-clock', [1.18, 2.68, 0.12]);
-  const clockCase = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.38, 0.14), matFrame);
+  // --- AV-02: Integrated Top-Right Red Dot-Matrix LED Digital Slave Clock (HH:MM SS) ---
+  const clock = makeSubGroup('sys-fids-pas', 'comp-master-clock', [KIOSK_X + 0.155, 2.155, KIOSK_D / 2 + 0.012]);
+  const clockHousing = new THREE.Mesh(
+    new THREE.BoxGeometry(0.41, 0.125, 0.036),
+    new THREE.MeshStandardMaterial({ color: 0x0b0f16, roughness: 0.28, metalness: 0.55 })
+  );
+  clockHousing.position.set(0, 0, -0.008);
+  // Rear RJ45 LAN / NTP Receiver Module on Master Clock (connects to Yellow/Amber LAN cable from Switch)
+  const clockLanPort = new THREE.Mesh(
+    new THREE.BoxGeometry(0.042, 0.032, 0.03),
+    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.38, metalness: 0.55 })
+  );
+  clockLanPort.position.set(0, 0, -0.035);
+  const clockLanLed = new THREE.Mesh(
+    new THREE.BoxGeometry(0.01, 0.01, 0.008),
+    new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.5 })
+  );
+  clockLanLed.position.set(0.012, 0.008, -0.052);
   const clockCanvas = createMasterClockTexture(maxAnisotropy);
   animatedParts.clockUpdater = clockCanvas.redraw;
   const clockFace = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.9, 0.32),
-    new THREE.MeshStandardMaterial({ map: clockCanvas.texture, emissiveMap: clockCanvas.texture, emissive: 0xffffff, emissiveIntensity: 0.65, roughness: 0.2 })
+    new THREE.PlaneGeometry(0.385, 0.108),
+    new THREE.MeshStandardMaterial({
+      map: clockCanvas.texture,
+      emissiveMap: clockCanvas.texture,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.92,
+      roughness: 0.12,
+    })
   );
-  clockFace.position.z = 0.075;
-  clock.group.add(clockCase, clockFace);
+  clockFace.position.set(0, 0, 0.021);
+  clock.group.add(clockHousing, clockLanPort, clockLanLed, clockFace);
   tagInteractive(clock.group, 'sys-fids-pas', 'comp-master-clock', clock.subsystemLayer);
   subComponents.push(clock);
   root.add(clock.group);
 
-  // AV-03: PAS & AAS Audio Stack (Digital Mixer, 100V Power Amp, Indoor Column & Ceiling Speakers)
-  const pas = makeSubGroup('sys-fids-pas', 'comp-pas-aas', [0, 0.72, 0]);
-  const ampRack = new THREE.Mesh(new THREE.BoxGeometry(0.74, 1.1, 0.56), matFrame);
-  for (let i = 0; i < 4; i++) {
-    const unit = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.18, 0.05), new THREE.MeshStandardMaterial({ color: i === 0 ? 0x4f46e5 : 0x334155, roughness: 0.35, metalness: 0.65 }));
-    unit.position.set(0, 0.32 - i * 0.24, 0.28);
-    pas.group.add(unit);
-  }
-  const sharedColTex = createColumnSpeakerGrilleTexture(maxAnisotropy);
-  const colLHandle = createColumnSpeakerUnit(maxAnisotropy, sharedColTex);
-  colLHandle.group.scale.setScalar(0.88);
-  colLHandle.group.position.set(-1.55, 1.55, 0.08);
-  colLHandle.group.rotation.order = 'YXZ';
-  colLHandle.group.rotation.y = -0.18;
-  colLHandle.group.rotation.x = 0.12;
-  const colRHandle = createColumnSpeakerUnit(maxAnisotropy, sharedColTex);
-  colRHandle.group.scale.setScalar(0.88);
-  colRHandle.group.position.set(1.55, 1.55, 0.08);
-  colRHandle.group.rotation.order = 'YXZ';
-  colRHandle.group.rotation.y = 0.18;
-  colRHandle.group.rotation.x = 0.12;
-  pas.group.add(ampRack, colLHandle.group, colRHandle.group);
-  tagInteractive(pas.group, 'sys-fids-pas', 'comp-pas-aas', pas.subsystemLayer);
-  subComponents.push(pas);
-  root.add(pas.group);
-
   return { root, systemId: 'sys-fids-pas', subComponents, outerShellMeshes, animatedParts };
+}
+
+// =========================================================================
+// 6. BIDS — BAGGAGE INFORMATION DISPLAY SYSTEM (Belt 7, Standalone System)
+// =========================================================================
+export function buildBidsSystem(maxAnisotropy: number): BuiltEquipmentUnit {
+  const root = new THREE.Group();
+  const subComponents: TaggedSubComponent[] = [];
+  const outerShellMeshes: THREE.Mesh[] = [];
+  const animatedParts: BuiltEquipmentUnit['animatedParts'] = {};
+
+  const bids = makeSubGroup('sys-bids', 'comp-bids-display', [0, 1.42, 0]);
+  const bidsUnit = createBidsDisplayUnit(maxAnisotropy);
+  bids.group.add(bidsUnit.group);
+  outerShellMeshes.push(...bidsUnit.outerShellMeshes);
+  animatedParts.bidsUpdater = bidsUnit.updater;
+
+  // Sleek slim industrial VESA dual-post floor stand holding BIDS cleanly centered above turntable
+  const matStand = new THREE.MeshStandardMaterial({ color: 0x1e232a, roughness: 0.42, metalness: 0.72 });
+  const standBase = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.032, 0.44), matStand);
+  standBase.position.set(0, -1.404, -0.08);
+  standBase.receiveShadow = true;
+  const poleL = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.42, 14), matStand);
+  poleL.position.set(-0.085, -0.7, -0.095);
+  const poleR = poleL.clone();
+  poleR.position.x = 0.085;
+  bids.group.add(standBase, poleL, poleR);
+
+  tagInteractive(bids.group, 'sys-bids', 'comp-bids-display', bids.subsystemLayer);
+  subComponents.push(bids);
+  root.add(bids.group);
+
+  return { root, systemId: 'sys-bids', subComponents, outerShellMeshes, animatedParts };
+}
+
+// =========================================================================
+// 7. PAS & AAS — INTERACTIVE BOSCH 42U RACK, PAGING PTT, COLUMN, CEILING & HORN SPEAKERS
+// =========================================================================
+export function buildPasSystem(maxAnisotropy: number): BuiltEquipmentUnit {
+  const root = new THREE.Group();
+  const subComponents: TaggedSubComponent[] = [];
+  const outerShellMeshes: THREE.Mesh[] = [];
+  const animatedParts: BuiltEquipmentUnit['animatedParts'] = {};
+
+  const matPedestal = new THREE.MeshStandardMaterial({ color: 0x1e232a, roughness: 0.42, metalness: 0.65 });
+  const matKioskSteel = new THREE.MeshStandardMaterial({ color: 0x1a1e24, roughness: 0.44, metalness: 0.56 });
+  const matPlinth = new THREE.MeshStandardMaterial({ color: 0x11151b, roughness: 0.52, metalness: 0.48 });
+  const matGalvanized = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.34, metalness: 0.78 });
+  const matCanopy = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.68, metalness: 0.08 });
+
+  // Helper to attach 2 extra staggered 3D acoustic wave rings to any speaker handle for lush soundwave visualization
+  const attachExtraWaveRings = (
+    handle: PasSpeakerHandle,
+    radius: number
+  ): THREE.Mesh[] => {
+    const extras: THREE.Mesh[] = [];
+    for (let i = 0; i < 2; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.011, 8, 32), mat);
+      if (handle.direction === 'down') {
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = -0.145;
+      } else {
+        ring.position.z = handle.speakerType === 'horn' ? 0.42 : 0.22;
+      }
+      ring.visible = false;
+      ring.userData.isWaveEffect = true;
+      handle.group.add(ring);
+      extras.push(ring);
+    }
+    return extras;
+  };
+
+  // --- PA-01: Authentic BOSCH 42U PAS/AAS Rack + Brushed-Aluminum Column Speaker ---
+  const pasRackSub = makeSubGroup('sys-pas', 'comp-pas-aas', [-0.36, 0, -0.1]);
+
+  const pasRack = createBoschPasRack(maxAnisotropy);
+  pasRack.group.scale.setScalar(0.94);
+  pasRack.group.position.set(0, 0, 0);
+  outerShellMeshes.push(...pasRack.outerShellMeshes);
+  pasRackSub.group.add(pasRack.group);
+
+  // Dynamic glowing signal status bars across Controller, OMNEO Switch & 11× Power Amplifiers inside the 42U Rack
+  const rackPulseMats: THREE.MeshStandardMaterial[] = [];
+  const rackStageHeights = [1.80, 1.65, 1.48, 1.24, 1.0, 0.76];
+  rackStageHeights.forEach((hy, idx) => {
+    const pulseMat = new THREE.MeshStandardMaterial({
+      color: idx < 2 ? 0x38bdf8 : 0x34d399,
+      emissive: idx < 2 ? 0x0284c7 : 0x10b981,
+      emissiveIntensity: 0.32,
+      roughness: 0.2,
+    });
+    rackPulseMats.push(pulseMat);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.011, 0.012), pulseMat);
+    bar.position.set(0, hy, 0.285);
+    pasRackSub.group.add(bar);
+  });
+
+  // Slim Brushed-Aluminum Floor Stanchion + Indoor Column Speaker flanking left of PAS Rack
+  const colGroup = new THREE.Group();
+  const colPole = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.032, 2.05, 16), matGalvanized);
+  colPole.position.set(-0.5, 1.025, 0.14);
+  const colBase = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.03, 20), matPlinth);
+  colBase.position.set(-0.5, 0.015, 0.14);
+  const sharedColTex = createColumnSpeakerGrilleTexture(maxAnisotropy);
+  const colHandle = createColumnSpeakerUnit(maxAnisotropy, sharedColTex);
+  colHandle.group.scale.setScalar(0.88);
+  colHandle.group.position.set(-0.5, 1.88, 0.19);
+  colHandle.group.rotation.x = 0.08;
+  const colExtraWaves = attachExtraWaveRings(colHandle, 0.22);
+  colGroup.add(colPole, colBase, colHandle.group);
+  colGroup.traverse((c) => {
+    if (!c.userData.isWaveEffect) c.userData.pasInteractiveAction = 'test-column';
+  });
+  pasRackSub.group.add(colGroup);
+
+  tagInteractive(pasRackSub.group, 'sys-pas', 'comp-pas-aas', pasRackSub.subsystemLayer);
+  subComponents.push(pasRackSub);
+  root.add(pasRackSub.group);
+
+  // --- PA-02: BOSCH Call Station (Interactive PTT) + Zone Extension Keypad on Operator Pedestal ---
+  const pagingSub = makeSubGroup('sys-pas', 'comp-pas-paging', [0.46, 0, 0.24]);
+
+  const pedTop = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.036, 0.42), matPedestal);
+  pedTop.position.set(0, 0.92, 0);
+  pedTop.castShadow = true;
+  pedTop.receiveShadow = true;
+  const pedLeg = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.9, 0.24), matKioskSteel);
+  pedLeg.position.set(0, 0.45, -0.02);
+  pedLeg.castShadow = true;
+  const pedBase = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.032, 0.36), matPlinth);
+  pedBase.position.set(0, 0.016, -0.02);
+
+  const pagingStation = createBoschPagingStation(maxAnisotropy);
+  pagingStation.group.scale.setScalar(1.32);
+  pagingStation.group.position.set(0, 0.94, 0);
+  outerShellMeshes.push(...pagingStation.outerShellMeshes);
+
+  pagingSub.group.add(pedTop, pedLeg, pedBase, pagingStation.group);
+  tagInteractive(pagingSub.group, 'sys-pas', 'comp-pas-paging', pagingSub.subsystemLayer);
+  subComponents.push(pagingSub);
+  root.add(pagingSub.group);
+
+  // --- PA-03: 100V Flush/Pendant Ceiling Speaker on Cutaway Architectural Canopy Gantry ---
+  const ceilingSub = makeSubGroup('sys-pas', 'comp-pas-ceiling', [1.16, 0, -0.06]);
+
+  const ceilBase = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.032, 0.42), matPlinth);
+  ceilBase.position.set(0, 0.016, -0.26);
+  const ceilPost = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.034, 2.3, 16), matKioskSteel);
+  ceilPost.position.set(0, 1.15, -0.26);
+  const ceilArm = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.34), matKioskSteel);
+  ceilArm.position.set(0, 2.28, -0.11);
+
+  // Architectural ceiling cutaway tile frame holding the flush 100V ceiling speaker facing downward (-Y)
+  const canopyTrim = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.044, 0.68), matKioskSteel);
+  canopyTrim.position.set(0, 2.28, 0.02);
+  const canopyTile = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.026, 0.62), matCanopy);
+  canopyTile.position.set(0, 2.265, 0.02);
+  canopyTile.userData.isOuterShell = true;
+  outerShellMeshes.push(canopyTile);
+
+  const sharedCeilTex = createCeilingSpeakerGrilleTexture(maxAnisotropy);
+  const ceilHandle = createCeilingSpeakerUnit(maxAnisotropy, sharedCeilTex);
+  ceilHandle.group.scale.setScalar(1.26);
+  ceilHandle.group.position.set(0, 2.365, 0.02);
+  const ceilExtraWaves = attachExtraWaveRings(ceilHandle, 0.24);
+
+  ceilingSub.group.add(ceilBase, ceilPost, ceilArm, canopyTrim, canopyTile, ceilHandle.group);
+  ceilingSub.group.traverse((c) => {
+    if (!c.userData.isWaveEffect) c.userData.pasInteractiveAction = 'test-ceiling';
+  });
+  tagInteractive(ceilingSub.group, 'sys-pas', 'comp-pas-ceiling', ceilingSub.subsystemLayer);
+  subComponents.push(ceilingSub);
+  root.add(ceilingSub.group);
+
+  // --- PA-04: Weatherproof IP65 100V Horn Speaker on Galvanized Outdoor Mast ---
+  const hornSub = makeSubGroup('sys-pas', 'comp-pas-horn', [-1.28, 0, 0.06]);
+
+  const hornBase = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.21, 0.04, 20), matPlinth);
+  hornBase.position.set(0, 0.02, 0);
+  const hornMast = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.042, 2.12, 16), matGalvanized);
+  hornMast.position.set(0, 1.06, 0);
+  const hornClamp = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 0.09), matKioskSteel);
+  hornClamp.position.set(0, 1.98, 0);
+
+  const hornHandle = createHornSpeakerUnit();
+  hornHandle.group.scale.setScalar(1.32);
+  hornHandle.group.position.set(0, 2.02, 0.04);
+  hornHandle.group.rotation.order = 'YXZ';
+  hornHandle.group.rotation.y = 0.34;
+  hornHandle.group.rotation.x = 0.12;
+  const hornExtraWaves = attachExtraWaveRings(hornHandle, 0.24);
+
+  hornSub.group.add(hornBase, hornMast, hornClamp, hornHandle.group);
+  hornSub.group.traverse((c) => {
+    if (!c.userData.isWaveEffect) c.userData.pasInteractiveAction = 'test-horn';
+  });
+  tagInteractive(hornSub.group, 'sys-pas', 'comp-pas-horn', hornSub.subsystemLayer);
+  subComponents.push(hornSub);
+  root.add(hornSub.group);
+
+  // --- VISIBLE 3D INTERCONNECT CABLES & ANIMATED DATA-FLOW PACKET STREAMS ---
+  // Paging Call Station (OMNEO LAN) -> BOSCH 42U Rack Modules (Switch -> Controller -> 11x Power Amp) -> 100V Speaker Cables -> Column / Ceiling / Horn
+  const cablesGroup = new THREE.Group();
+  const streams: PasSignalFlowStream[] = [];
+  const packetGeo = new THREE.SphereGeometry(0.024, 12, 10);
+
+  const addSignalStream = (
+    stage: PasSignalFlowStream['stage'],
+    points: THREE.Vector3[],
+    radius: number,
+    baseColor: number,
+    activeColor: number,
+    packetCount: number
+  ) => {
+    const curve = new THREE.CatmullRomCurve3(points);
+    const cableMat = new THREE.MeshStandardMaterial({
+      color: baseColor,
+      emissive: baseColor,
+      emissiveIntensity: 0.18,
+      roughness: 0.38,
+      metalness: 0.22,
+    });
+    const cableMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 36, radius, 8, false), cableMat);
+    cableMesh.castShadow = true;
+    cablesGroup.add(cableMesh);
+
+    const packets: THREE.Mesh[] = [];
+    for (let i = 0; i < packetCount; i++) {
+      const pMat = new THREE.MeshBasicMaterial({
+        color: activeColor,
+        transparent: true,
+        opacity: 0.92,
+      });
+      const orb = new THREE.Mesh(packetGeo, pMat);
+      orb.visible = true;
+      orb.position.copy(curve.getPoint(i / packetCount));
+      orb.userData.isWaveEffect = true;
+      cablesGroup.add(orb);
+      packets.push(orb);
+    }
+
+    streams.push({ stage, curve, cableMat, packets, baseColor, activeColor });
+  };
+
+  // 1. OMNEO Digital Audio Cat6 LAN Cable: BOSCH Call Station Rear RJ45 -> Rack U39 OMNEO Switch
+  addSignalStream(
+    'omneo',
+    [
+      new THREE.Vector3(0.36, 0.96, 0.06),
+      new THREE.Vector3(0.24, 0.92, -0.18),
+      new THREE.Vector3(0.06, 1.05, -0.34),
+      new THREE.Vector3(-0.08, 1.48, -0.38),
+      new THREE.Vector3(-0.24, 1.65, -0.18),
+      new THREE.Vector3(-0.34, 1.65, 0.16),
+    ],
+    0.0085,
+    0x0284c7,
+    0x38bdf8,
+    6
+  );
+
+  // 2. Internal Rack Signal Bus: U39 OMNEO Switch -> U41 BOSCH Network Controller -> 11× 100V Power Amplifiers -> Rear Green Phoenix 100V Terminals
+  addSignalStream(
+    'rack',
+    [
+      new THREE.Vector3(-0.34, 1.65, 0.18),
+      new THREE.Vector3(-0.34, 1.81, 0.21),
+      new THREE.Vector3(-0.14, 1.72, 0.2),
+      new THREE.Vector3(-0.14, 1.38, 0.19),
+      new THREE.Vector3(-0.14, 0.98, 0.19),
+      new THREE.Vector3(-0.18, 0.68, 0.04),
+      new THREE.Vector3(-0.36, 0.56, -0.4),
+      new THREE.Vector3(-0.36, 0.26, -0.42),
+    ],
+    0.0075,
+    0x10b981,
+    0x34d399,
+    8
+  );
+
+  // 3A. 100V Speaker Cable: Rack Rear 100V Terminal -> Column Speaker (20W)
+  addSignalStream(
+    'column',
+    [
+      new THREE.Vector3(-0.44, 0.26, -0.42),
+      new THREE.Vector3(-0.66, 0.08, -0.26),
+      new THREE.Vector3(-0.84, 0.08, 0.02),
+      new THREE.Vector3(-0.86, 0.85, 0.04),
+      new THREE.Vector3(-0.86, 1.78, 0.06),
+    ],
+    0.0075,
+    0xd97706,
+    0xfbbf24,
+    5
+  );
+
+  // 3B. 100V Speaker Cable: Rack Rear 100V Terminal -> Ceiling Speaker (6W)
+  addSignalStream(
+    'ceiling',
+    [
+      new THREE.Vector3(-0.28, 0.26, -0.42),
+      new THREE.Vector3(0.24, 0.08, -0.44),
+      new THREE.Vector3(0.88, 0.08, -0.4),
+      new THREE.Vector3(1.16, 0.14, -0.32),
+      new THREE.Vector3(1.16, 1.25, -0.32),
+      new THREE.Vector3(1.16, 2.28, -0.3),
+      new THREE.Vector3(1.16, 2.34, -0.04),
+    ],
+    0.0075,
+    0xd97706,
+    0xfbbf24,
+    7
+  );
+
+  // 3C. 100V Speaker Cable: Rack Rear 100V Terminal -> Horn Speaker IP65 (30W)
+  addSignalStream(
+    'horn',
+    [
+      new THREE.Vector3(-0.5, 0.26, -0.42),
+      new THREE.Vector3(-0.92, 0.08, -0.34),
+      new THREE.Vector3(-1.26, 0.08, -0.04),
+      new THREE.Vector3(-1.28, 1.05, 0.04),
+      new THREE.Vector3(-1.28, 1.96, 0.05),
+    ],
+    0.0075,
+    0xd97706,
+    0xfbbf24,
+    6
+  );
+
+  root.add(cablesGroup);
+
+  animatedParts.pasRig = {
+    pttCap: pagingStation.pttCap!,
+    pttRestZ: pagingStation.pttCap!.position.z,
+    pttGlowRingMat: pagingStation.pttGlowRingMat!,
+    micActiveLedMat: pagingStation.micActiveLedMat!,
+    rackPulseMats,
+    streams,
+    speakers: [
+      { id: 'column', handle: colHandle, extraWaveRings: colExtraWaves },
+      { id: 'ceiling', handle: ceilHandle, extraWaveRings: ceilExtraWaves },
+      { id: 'horn', handle: hornHandle, extraWaveRings: hornExtraWaves },
+    ],
+    cablesGroup,
+  };
+
+  return { root, systemId: 'sys-pas', subComponents, outerShellMeshes, animatedParts };
 }
 
 // =========================================================================
@@ -1499,7 +3120,10 @@ export function buildRadioIgcsSystem(): BuiltEquipmentUnit {
   return { root, systemId: 'sys-radio-igcs', subComponents, outerShellMeshes, animatedParts: {} };
 }
 
-export function buildEquipmentBySystem(systemId: SystemId, maxAnisotropy: number): BuiltEquipmentUnit {
+export function buildEquipmentBySystem(
+  systemId: SystemId,
+  maxAnisotropy: number
+): BuiltEquipmentUnit {
   switch (systemId) {
     case 'sys-xray':
       return buildXRaySystem(maxAnisotropy);
@@ -1510,7 +3134,11 @@ export function buildEquipmentBySystem(systemId: SystemId, maxAnisotropy: number
     case 'sys-access-fire':
       return buildAccessFireSystem();
     case 'sys-fids-pas':
-      return buildFidsPasSystem(maxAnisotropy);
+      return buildFidsSystem(maxAnisotropy);
+    case 'sys-bids':
+      return buildBidsSystem(maxAnisotropy);
+    case 'sys-pas':
+      return buildPasSystem(maxAnisotropy);
     case 'sys-radio-igcs':
       return buildRadioIgcsSystem();
   }
@@ -1548,6 +3176,19 @@ export function buildTocEvaluationDesk(maxAnisotropy: number): THREE.Group {
       c.receiveShadow = true;
     }
   });
+
+  // Authentic BOSCH Paging Call Station + Zone Extension mounted on TOC Operator Desk (clickable to inspect PAS)
+  const tocPaging = createBoschPagingStation(maxAnisotropy);
+  tocPaging.group.scale.setScalar(1.22);
+  tocPaging.group.position.set(1.18, 0.93, 0.2);
+  tocPaging.group.rotation.y = -0.22;
+  tocPaging.group.traverse((c) => {
+    c.userData.systemId = 'sys-pas';
+    c.userData.componentId = 'comp-pas-paging';
+    c.userData.zoneId = 'toc';
+  });
+  group.add(tocPaging.group);
+
   return group;
 }
 

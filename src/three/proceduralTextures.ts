@@ -180,71 +180,261 @@ export function createVideotronTexture(maxAnisotropy: number): THREE.CanvasTextu
 
 export function createFidsCanvasTexture(maxAnisotropy: number) {
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 512;
+  canvas.width = 768;
+  canvas.height = 1152;
   const ctx = canvas.getContext('2d')!;
   const tex = finalizeTexture(canvas, maxAnisotropy);
 
-  const flights = [
-    { time: '10:15', flight: 'GA 402', dest: 'DENPASAR (DPS)', gate: 'A04', status: 'BOARDING', color: '#4ade80' },
-    { time: '10:30', flight: 'ID 6512', dest: 'SURABAYA (SUB)', gate: 'A07', status: 'FINAL CALL', color: '#fbbf24' },
-    { time: '10:50', flight: 'SQ 957', dest: 'SINGAPORE (SIN)', gate: 'B02', status: 'ON TIME', color: '#38bdf8' },
-    { time: '11:15', flight: 'QG 714', dest: 'MAKASSAR (UPG)', gate: 'A09', status: 'CHECK-IN', color: '#e2e8f0' },
-    { time: '11:40', flight: 'GA 866', dest: 'TOKYO (HND)', gate: 'B05', status: 'ON TIME', color: '#38bdf8' },
-    { time: '12:05', flight: 'JT 610', dest: 'MEDAN (KNO)', gate: 'A02', status: 'SCHEDULED', color: '#cbd5e1' },
+  type AirlineKey = 'batik' | 'lion' | 'citilink' | 'sriwijaya' | 'nam' | 'garuda' | 'pelita' | 'superair';
+  interface FidsRow {
+    airline: AirlineKey;
+    flight: string;
+    time: string;
+    dest: string;
+    gate: string;
+    remarks: string;
+    remarkColor: string;
+    hasPlaneIcon?: boolean;
+  }
+
+  const topFlights: FidsRow[] = [
+    { airline: 'batik', flight: 'ID 6281', time: '20:40', dest: 'Jakarta', gate: '8', remarks: 'Gate Closed', remarkColor: '#fb7185', hasPlaneIcon: true },
+    { airline: 'lion', flight: 'JT 791', time: '20:45', dest: 'Surabaya', gate: '5', remarks: 'Gate Closed', remarkColor: '#fb7185', hasPlaneIcon: true },
+    { airline: 'nam', flight: 'IN 602', time: '21:00', dest: 'Denpasar', gate: '7', remarks: 'To Waiting Room', remarkColor: '#7dd3fc', hasPlaneIcon: true },
+    { airline: 'citilink', flight: 'QG 351', time: '21:15', dest: 'Jakarta', gate: '8', remarks: 'Check in Open', remarkColor: '#5eead4', hasPlaneIcon: true },
+    { airline: 'sriwijaya', flight: 'SJ 589', time: '21:30', dest: 'Jakarta', gate: '9', remarks: 'Check in Open', remarkColor: '#5eead4', hasPlaneIcon: true },
+    { airline: 'lion', flight: 'JT 715', time: '21:45', dest: 'Balikpapan', gate: '9', remarks: 'Check in Open', remarkColor: '#5eead4', hasPlaneIcon: true },
   ];
 
+  const scheduledFlights: FidsRow[] = [
+    { airline: 'citilink', flight: 'QG 332', time: '00:10', dest: 'Jakarta', gate: '5', remarks: 'Scheduled', remarkColor: '#f1f5f9', hasPlaneIcon: true },
+    { airline: 'garuda', flight: 'GA 615', time: '00:25', dest: 'Jakarta', gate: '3', remarks: 'Scheduled', remarkColor: '#f1f5f9', hasPlaneIcon: true },
+    { airline: 'lion', flight: 'JT 786', time: '05:10', dest: 'Jayapura', gate: '', remarks: 'Scheduled', remarkColor: '#f1f5f9', hasPlaneIcon: true },
+    { airline: 'lion', flight: 'JT 744', time: '05:30', dest: 'Manado', gate: '', remarks: 'Scheduled', remarkColor: '#f1f5f9' },
+    { airline: 'citilink', flight: 'QG 430', time: '05:45', dest: 'Surabaya', gate: '1', remarks: 'Scheduled', remarkColor: '#f1f5f9', hasPlaneIcon: true },
+    { airline: 'lion', flight: 'JT 796', time: '06:00', dest: 'Sorong', gate: '', remarks: 'Scheduled', remarkColor: '#f1f5f9', hasPlaneIcon: true },
+    { airline: 'lion', flight: 'JT 880', time: '06:15', dest: 'Kendari', gate: '', remarks: 'Scheduled', remarkColor: '#f1f5f9' },
+    { airline: 'superair', flight: 'IU 524', time: '06:30', dest: 'Balikpapan', gate: '', remarks: 'Scheduled', remarkColor: '#f1f5f9', hasPlaneIcon: true },
+    { airline: 'pelita', flight: 'IP 310', time: '07:00', dest: 'Jakarta', gate: '4', remarks: 'Check in Open', remarkColor: '#5eead4' },
+    { airline: 'batik', flight: 'ID 6181', time: '07:20', dest: 'Ambon', gate: '', remarks: 'Scheduled', remarkColor: '#f1f5f9', hasPlaneIcon: true },
+    { airline: 'batik', flight: 'ID 6291', time: '07:45', dest: 'Jayapura', gate: '', remarks: 'Scheduled', remarkColor: '#f1f5f9', hasPlaneIcon: true },
+    { airline: 'garuda', flight: 'GA 643', time: '08:15', dest: 'Denpasar', gate: '2', remarks: 'Scheduled', remarkColor: '#f1f5f9', hasPlaneIcon: true },
+  ];
+
+  const drawAirlinePill = (airline: AirlineKey, x: number, y: number, w: number, h: number) => {
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(x, y, w, h);
+
+    if (airline === 'batik') {
+      ctx.fillStyle = '#9d174d';
+      ctx.fillRect(x, y, 6, h);
+      ctx.fillStyle = '#6b21a8';
+      ctx.font = 'italic 800 17px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Batik', x + 12, y + 21);
+      ctx.fillStyle = '#db2777';
+      ctx.font = '700 13px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('air', x + 64, y + 21);
+    } else if (airline === 'lion') {
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(x, y, 6, h);
+      ctx.font = '800 16px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Lion', x + 11, y + 21);
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '700 14px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('air', x + 54, y + 21);
+    } else if (airline === 'citilink') {
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(x, y, 6, h);
+      ctx.fillStyle = '#15803d';
+      ctx.font = '800 16px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Citilink', x + 12, y + 21);
+    } else if (airline === 'sriwijaya') {
+      ctx.fillStyle = '#1d4ed8';
+      ctx.fillRect(x, y, 6, h);
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(x + 6, y + h - 5, w - 6, 5);
+      ctx.fillStyle = '#1e3a8a';
+      ctx.font = '800 12px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Sriwijaya', x + 11, y + 19);
+    } else if (airline === 'nam') {
+      ctx.fillStyle = '#1d4ed8';
+      ctx.fillRect(x, y, 6, h);
+      ctx.fillStyle = '#1e40af';
+      ctx.font = '900 14px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('NAM AIR', x + 12, y + 20);
+    } else if (airline === 'garuda') {
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(x, y, 6, h);
+      ctx.fillStyle = '#0369a1';
+      ctx.font = '800 15px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('Garuda', x + 12, y + 21);
+    } else if (airline === 'pelita') {
+      ctx.fillStyle = '#0ea5e9';
+      ctx.fillRect(x, y, 6, h);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = '800 13px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('PELITA AIR', x + 10, y + 20);
+    } else {
+      ctx.fillStyle = '#e11d48';
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '800 12px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText('SUPER AIR', x + 10, y + 20);
+    }
+  };
+
+  const drawMiniPlaneIcon = (x: number, y: number) => {
+    ctx.save();
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.85)';
+    ctx.beginPath();
+    ctx.moveTo(x, y + 4);
+    ctx.lineTo(x + 14, y - 3);
+    ctx.lineTo(x + 16, y - 1);
+    ctx.lineTo(x + 5, y + 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillRect(x + 18, y + 1, 9, 2);
+    ctx.restore();
+  };
+
   const redraw = (now: Date) => {
-    ctx.fillStyle = '#071324';
-    ctx.fillRect(0, 0, 1024, 512);
+    // Authentic Sultan Hasanuddin deep aviation navy gradient
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, 1152);
+    bgGrad.addColorStop(0, '#143252');
+    bgGrad.addColorStop(0.5, '#1b4772');
+    bgGrad.addColorStop(1, '#122f4d');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 768, 1152);
 
-    ctx.fillStyle = '#0f294a';
-    ctx.fillRect(0, 0, 1024, 76);
+    // Top Header Band
+    ctx.fillStyle = '#183f67';
+    ctx.fillRect(0, 0, 768, 112);
 
-    ctx.fillStyle = '#facc15';
-    ctx.font = '700 32px "Plus Jakarta Sans", sans-serif';
-    ctx.fillText('DEPARTURES · FIDS CONCOURSE', 32, 50);
+    // Left Departure Airplane Icon Badge
+    ctx.fillStyle = '#dbeafe';
+    ctx.beginPath();
+    ctx.roundRect(24, 24, 62, 62, 10);
+    ctx.fill();
+    ctx.fillStyle = '#16385c';
+    ctx.beginPath();
+    ctx.moveTo(35, 62);
+    ctx.lineTo(72, 42);
+    ctx.lineTo(76, 48);
+    ctx.lineTo(57, 61);
+    ctx.lineTo(63, 73);
+    ctx.lineTo(56, 75);
+    ctx.lineTo(48, 63);
+    ctx.lineTo(39, 67);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillRect(36, 74, 38, 4);
 
+    // Bilingual Title
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 26px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('Informasi Keberangkatan', 102, 53);
+    ctx.fillStyle = '#bfdbfe';
+    ctx.font = '500 19px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('Departure Information', 102, 80);
+
+    // Right Airport Branding
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '700 20px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('Sultan Hasanuddin', 744, 52);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '500 18px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('International Airport', 744, 78);
+    ctx.textAlign = 'left';
+
+    // Subtle Gate Column Highlight Band (matching the reference layout)
+    ctx.fillStyle = 'rgba(147, 197, 253, 0.13)';
+    ctx.fillRect(528, 152, 54, 944);
+
+    // Table Column Header Bar
+    ctx.fillStyle = '#12304f';
+    ctx.fillRect(0, 112, 768, 40);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('FLIGHT', 92, 138);
+    ctx.fillText('TIME', 238, 138);
+    ctx.fillText('DESTINATION', 324, 138);
+    ctx.textAlign = 'center';
+    ctx.fillText('GATE', 555, 138);
+    ctx.fillText('REMARKS', 674, 138);
+    ctx.textAlign = 'left';
+
+    const drawRow = (row: FidsRow, y: number, idx: number) => {
+      const rowH = 44;
+      ctx.fillStyle = idx % 2 === 0 ? 'rgba(255,255,255,0.06)' : 'rgba(15, 39, 68, 0.24)';
+      ctx.fillRect(0, y, 768, rowH);
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(0, y + rowH - 1, 768, 1);
+
+      drawAirlinePill(row.airline, 14, y + 6, 98, 32);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '600 18px "IBM Plex Mono", monospace';
+      ctx.fillText(row.flight, 124, y + 29);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '600 18px "IBM Plex Mono", monospace';
+      ctx.fillText(row.time, 232, y + 29);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '600 19px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(row.dest, 316, y + 29);
+
+      if (row.hasPlaneIcon) {
+        drawMiniPlaneIcon(478, y + 23);
+      }
+
+      if (row.gate) {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 19px "IBM Plex Mono", monospace';
+        ctx.fillText(row.gate, 555, y + 29);
+        ctx.textAlign = 'left';
+      }
+
+      ctx.textAlign = 'center';
+      ctx.fillStyle = row.remarkColor;
+      ctx.font = '700 17px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(row.remarks, 674, y + 29);
+      ctx.textAlign = 'left';
+    };
+
+    // Active / Immediate Flights (rows 0..5)
+    topFlights.forEach((f, idx) => drawRow(f, 154 + idx * 46, idx));
+
+    // Mid-Table Divider Strip (matches reference)
+    const divY = 154 + topFlights.length * 46 + 4;
+    ctx.fillStyle = '#112a47';
+    ctx.fillRect(0, divY, 768, 30);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#93c5fd';
+    ctx.font = '600 14px "IBM Plex Mono", monospace';
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = '600 32px "IBM Plex Mono", monospace';
-    ctx.fillText(`${hh}:${mm}:${ss} WIB`, 738, 50);
+    ctx.fillText(`JADWAL KEBERANGKATAN BERIKUTNYA · UPG MAKASSAR · ${hh}:${mm}:${ss} WITA`, 384, divY + 20);
+    ctx.textAlign = 'left';
 
-    // Column headers
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '600 18px "IBM Plex Mono", monospace';
-    ctx.fillText('TIME', 32, 114);
-    ctx.fillText('FLIGHT', 150, 114);
-    ctx.fillText('DESTINATION', 310, 114);
-    ctx.fillText('GATE', 660, 114);
-    ctx.fillText('STATUS', 790, 114);
+    // Scheduled Flights below divider
+    const schedStartY = divY + 34;
+    scheduledFlights.forEach((f, idx) => drawRow(f, schedStartY + idx * 46, idx));
 
-    flights.forEach((f, idx) => {
-      const y = 136 + idx * 58;
-      ctx.fillStyle = idx % 2 === 0 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.015)';
-      ctx.fillRect(20, y, 984, 48);
-
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = '600 24px "IBM Plex Mono", monospace';
-      ctx.fillText(f.time, 32, y + 32);
-
-      ctx.fillStyle = '#facc15';
-      ctx.fillText(f.flight, 150, y + 32);
-
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = '600 23px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(f.dest, 310, y + 32);
-
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = '700 24px "IBM Plex Mono", monospace';
-      ctx.fillText(f.gate, 660, y + 32);
-
-      ctx.fillStyle = f.color;
-      ctx.font = '700 21px "IBM Plex Mono", monospace';
-      ctx.fillText(f.status, 790, y + 32);
-    });
+    // Bottom Airport Footer Bar
+    ctx.fillStyle = '#255282';
+    ctx.fillRect(0, 1096, 768, 56);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '600 14px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('FIDS · Sultan Hasanuddin International Airport Makassar (UPG)', 24, 1130);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#bae6fd';
+    ctx.font = '600 14px "IBM Plex Mono", monospace';
+    ctx.fillText('INJOURNEY AIRPORTS · LIVE SYNC', 744, 1130);
+    ctx.textAlign = 'left';
 
     tex.needsUpdate = true;
   };
@@ -256,28 +446,104 @@ export function createFidsCanvasTexture(maxAnisotropy: number) {
 export function createMasterClockTexture(maxAnisotropy: number) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
-  canvas.height = 192;
+  canvas.height = 148;
   const ctx = canvas.getContext('2d')!;
   const tex = finalizeTexture(canvas, maxAnisotropy);
 
-  const redraw = (now: Date) => {
-    ctx.fillStyle = '#060c18';
-    ctx.fillRect(0, 0, 512, 192);
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 8;
-    ctx.strokeRect(4, 4, 504, 184);
+  // Authentic 7-segment LED dot-matrix digit bitmasks: [top, topR, botR, bot, botL, topL, mid]
+  const SEGMENTS: Record<string, number[]> = {
+    '0': [1, 1, 1, 1, 1, 1, 0],
+    '1': [0, 1, 1, 0, 0, 0, 0],
+    '2': [1, 1, 0, 1, 1, 0, 1],
+    '3': [1, 1, 1, 1, 0, 0, 1],
+    '4': [0, 1, 1, 0, 0, 1, 1],
+    '5': [1, 0, 1, 1, 0, 1, 1],
+    '6': [1, 0, 1, 1, 1, 1, 1],
+    '7': [1, 1, 1, 0, 0, 0, 0],
+    '8': [1, 1, 1, 1, 1, 1, 1],
+    '9': [1, 1, 1, 1, 0, 1, 1],
+  };
 
-    ctx.fillStyle = '#38bdf8';
-    ctx.font = '600 18px "IBM Plex Mono", monospace';
-    ctx.fillText('MASTER CLOCK UNIT · GPS / NTP SYNC', 28, 42);
+  const drawDotSegment = (x1: number, y1: number, x2: number, y2: number, lit: boolean, r: number) => {
+    const dots = 4;
+    for (let i = 0; i < dots; i++) {
+      const t = (i + 0.5) / dots;
+      const dx = x1 + (x2 - x1) * t;
+      const dy = y1 + (y2 - y1) * t;
+      if (lit) {
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.35)';
+        ctx.beginPath();
+        ctx.arc(dx, dy, r * 1.9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ff3b30';
+        ctx.beginPath();
+        ctx.arc(dx, dy, r, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#1b0d10';
+        ctx.beginPath();
+        ctx.arc(dx, dy, r * 0.72, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  };
+
+  const drawDigit = (ch: string, x: number, y: number, w: number, h: number, dotR: number) => {
+    const mask = SEGMENTS[ch] ?? SEGMENTS['0'];
+    const half = h / 2;
+    const pad = dotR * 1.4;
+    drawDotSegment(x + pad, y, x + w - pad, y, mask[0] === 1, dotR); // top
+    drawDotSegment(x + w, y + pad, x + w, y + half - pad, mask[1] === 1, dotR); // topR
+    drawDotSegment(x + w, y + half + pad, x + w, y + h - pad, mask[2] === 1, dotR); // botR
+    drawDotSegment(x + pad, y + h, x + w - pad, y + h, mask[3] === 1, dotR); // bot
+    drawDotSegment(x, y + half + pad, x, y + h - pad, mask[4] === 1, dotR); // botL
+    drawDotSegment(x, y + pad, x, y + half - pad, mask[5] === 1, dotR); // topL
+    drawDotSegment(x + pad, y + half, x + w - pad, y + half, mask[6] === 1, dotR); // mid
+  };
+
+  const redraw = (now: Date) => {
+    ctx.fillStyle = '#07090e';
+    ctx.fillRect(0, 0, 512, 148);
+
+    // Subtle dark glass perimeter trim
+    ctx.strokeStyle = '#181c24';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, 506, 142);
 
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
-    ctx.fillStyle = '#ef4444';
-    ctx.font = '700 84px "IBM Plex Mono", monospace';
-    ctx.fillText(`${hh}:${mm}:${ss}`, 44, 146);
 
+    // Slight forward slant matching real LED digital slave clocks in airport FIDS kiosks
+    ctx.save();
+    ctx.transform(1, 0, -0.14, 1, 22, 0);
+
+    // Hours HH
+    drawDigit(hh[0], 26, 28, 52, 90, 4.1);
+    drawDigit(hh[1], 100, 28, 52, 90, 4.1);
+
+    // Colon :
+    const colonLit = now.getSeconds() % 2 === 0;
+    [54, 92].forEach((cy) => {
+      ctx.fillStyle = colonLit ? 'rgba(239, 68, 68, 0.35)' : 'transparent';
+      ctx.beginPath();
+      ctx.arc(174, cy, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = colonLit ? '#ff3b30' : '#4a1216';
+      ctx.beginPath();
+      ctx.arc(174, cy, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Minutes MM
+    drawDigit(mm[0], 198, 28, 52, 90, 4.1);
+    drawDigit(mm[1], 272, 28, 52, 90, 4.1);
+
+    // Smaller Seconds SS on the right (matching 20:30 29 in reference)
+    drawDigit(ss[0], 362, 46, 38, 68, 3.2);
+    drawDigit(ss[1], 418, 46, 38, 68, 3.2);
+
+    ctx.restore();
     tex.needsUpdate = true;
   };
 
@@ -285,41 +551,581 @@ export function createMasterClockTexture(maxAnisotropy: number) {
   return { texture: tex, redraw };
 }
 
-export function createBidsTexture(maxAnisotropy: number): THREE.CanvasTexture {
+export function createFidsRearPanelTexture(maxAnisotropy: number): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 768;
-  canvas.height = 384;
+  canvas.height = 1536;
   const ctx = canvas.getContext('2d')!;
 
-  ctx.fillStyle = '#091628';
-  ctx.fillRect(0, 0, 768, 384);
-  ctx.fillStyle = '#f59e0b';
-  ctx.fillRect(0, 0, 768, 72);
+  // Matte dark charcoal powder-coated steel back panel
+  const grad = ctx.createLinearGradient(0, 0, 768, 1536);
+  grad.addColorStop(0, '#272c34');
+  grad.addColorStop(0.5, '#1e232a');
+  grad.addColorStop(1, '#171b21');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 768, 1536);
 
-  ctx.fillStyle = '#0f172a';
-  ctx.font = '700 32px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('BAGGAGE CLAIM · BELT 03 (BIDS)', 28, 48);
+  // Upper Rear Plate Seam & Perimeter Screws
+  ctx.strokeStyle = '#0d1015';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(24, 24, 720, 724);
 
-  const rows = [
-    ['GA 401', 'DENPASAR', 'DELIVERING'],
-    ['SQ 956', 'SINGAPORE', 'FIRST BAG ON BELT'],
-    ['ID 6511', 'SURABAYA', 'NEXT FLIGHT'],
+  const screws: Array<[number, number]> = [
+    [195, 38], [573, 38],
+    [40, 210], [728, 210],
+    [40, 480], [728, 480],
+    [40, 728], [384, 734], [728, 728],
   ];
-
-  rows.forEach((r, idx) => {
-    const y = 112 + idx * 80;
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.fillRect(24, y, 720, 64);
-    ctx.fillStyle = '#facc15';
-    ctx.font = '700 28px "IBM Plex Mono", monospace';
-    ctx.fillText(r[0], 40, y + 42);
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '600 26px "Plus Jakarta Sans", sans-serif';
-    ctx.fillText(r[1], 210, y + 42);
-    ctx.fillStyle = idx === 0 ? '#4ade80' : '#38bdf8';
-    ctx.font = '600 22px "IBM Plex Mono", monospace';
-    ctx.fillText(r[2], 470, y + 42);
+  screws.forEach(([sx, sy]) => {
+    ctx.fillStyle = '#0b0e12';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sx - 3, sy);
+    ctx.lineTo(sx + 3, sy);
+    ctx.stroke();
   });
+
+  // Center Silver/White Equipment Spec & Barcode Sticker (matching fids_rear.jpg)
+  ctx.fillStyle = '#d1d5db';
+  ctx.beginPath();
+  ctx.roundRect(304, 412, 160, 96, 6);
+  ctx.fill();
+  ctx.strokeStyle = '#9ca3af';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = '#111827';
+  ctx.font = '800 13px "IBM Plex Mono", monospace';
+  ctx.fillText('ELBAN · FIDS 55P', 316, 430);
+  ctx.font = '600 9px "IBM Plex Mono", monospace';
+  ctx.fillText('MODEL : UPG-FIDS-K55', 316, 444);
+  ctx.fillText('INPUT : 220-240V~ 50Hz', 316, 456);
+  ctx.fillText('POWER : 185W   CE  ROHS', 316, 468);
+  // Crisp Barcode Stripes
+  for (let i = 0; i < 34; i++) {
+    const bw = i % 3 === 0 ? 3 : 1.5;
+    ctx.fillRect(318 + i * 3.8, 476, bw, 20);
+  }
+
+  // Center Square Lockable Media-Player Service Access Hatch
+  ctx.strokeStyle = '#0b0e13';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(256, 526, 256, 204);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(259, 529, 250, 198);
+
+  // Flanking Left & Right Perforated Cooling Ventilation Grilles
+  const drawVentGrid = (startX: number, startY: number) => {
+    for (let r = 0; r < 18; r++) {
+      for (let c = 0; c < 8; c++) {
+        ctx.fillStyle = '#090c10';
+        ctx.beginPath();
+        ctx.arc(startX + c * 12, startY + r * 11, 3.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  };
+  drawVentGrid(134, 534);
+  drawVentGrid(544, 534);
+
+  // Lower Tall Rectangular Maintenance Access Door
+  ctx.strokeStyle = '#0a0d12';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(102, 754, 564, 742);
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(106, 758, 556, 734);
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
+export function createFidsInternalSwitchTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+
+  // Industrial network switch aluminum/navy faceplate
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, 512, 128);
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, 508, 124);
+
+  // Left switch brand & status LEDs
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = '800 16px "IBM Plex Mono", monospace';
+  ctx.fillText('FIDS LAN SWITCH', 14, 30);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '600 11px "IBM Plex Mono", monospace';
+  ctx.fillText('8-PORT GbE · NTP/AODB', 14, 48);
+
+  // PWR + SYS LEDs
+  ctx.fillStyle = '#22c55e';
+  ctx.beginPath();
+  ctx.arc(24, 76, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#38bdf8';
+  ctx.beginPath();
+  ctx.arc(24, 98, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '700 10px "IBM Plex Mono", monospace';
+  ctx.fillText('PWR', 36, 80);
+  ctx.fillText('LAN', 36, 102);
+
+  // 8x RJ45 Ethernet Ports with active labels for P1 (UPLINK), P2 (FIDS), P3 (CLK)
+  const labels = ['UP', 'MON', 'CLK', 'P4', 'P5', 'P6', 'P7', 'P8'];
+  for (let i = 0; i < 8; i++) {
+    const px = 176 + i * 40;
+    const active = i < 3;
+    ctx.fillStyle = active ? '#1e293b' : '#111827';
+    ctx.fillRect(px, 44, 32, 42);
+    ctx.strokeStyle = active ? '#60a5fa' : '#475569';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px, 44, 32, 42);
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(px + 4, 52, 24, 26);
+
+    // Port LEDs
+    ctx.fillStyle = active ? '#22c55e' : '#334155';
+    ctx.fillRect(px + 4, 36, 9, 5);
+    ctx.fillStyle = active ? '#facc15' : '#334155';
+    ctx.fillRect(px + 19, 36, 9, 5);
+
+    ctx.fillStyle = active ? '#f8fafc' : '#64748b';
+    ctx.font = '700 10px "IBM Plex Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(labels[i], px + 16, 106);
+  }
+  ctx.textAlign = 'left';
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
+export function createBidsTexture(maxAnisotropy: number): {
+  texture: THREE.CanvasTexture;
+  redraw: (now?: Date) => void;
+} {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 576;
+  const ctx = canvas.getContext('2d')!;
+  const texture = finalizeTexture(canvas, maxAnisotropy);
+
+  const drawLionAirBadge = (x: number, y: number, w: number, h: number) => {
+    // Crisp white airline card
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x, y, w, h);
+
+    const cy = y + h * 0.55;
+    // "Lion" bold italic red wordmark
+    ctx.fillStyle = '#dc2626';
+    ctx.font = 'italic 800 44px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('Lion', x + 14, cy + 12);
+
+    // Stylized red winged lion emblem in center
+    const ex = x + w * 0.57;
+    const ey = y + h * 0.5;
+    ctx.save();
+    ctx.fillStyle = '#dc2626';
+    ctx.strokeStyle = '#dc2626';
+    // Wing feathers sweeping up-left
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.ellipse(ex - 8 - i * 1.4, ey - 14 + i * 7, 16 - i * 1.5, 3.2, -0.58 + i * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Lion head & mane silhouette
+    ctx.beginPath();
+    ctx.arc(ex + 6, ey - 10, 11, 0, Math.PI * 2);
+    ctx.fill();
+    // Lower tail swoosh
+    ctx.beginPath();
+    ctx.ellipse(ex + 2, ey + 14, 15, 7, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+    // Negative white eye & wing separation lines
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.6;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(ex - 16, ey - 10 + i * 6);
+      ctx.lineTo(ex + 1, ey - 4 + i * 5);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(ex + 10, ey - 12, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // "air" italic red wordmark
+    ctx.fillStyle = '#dc2626';
+    ctx.font = 'italic 800 42px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('air', x + w - 70, cy + 12);
+  };
+
+  const drawSriwijayaBadge = (x: number, y: number, w: number, h: number) => {
+    // White card base
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x, y, w, h);
+
+    // Crimson red left swooped panel + top/bottom thin borders
+    const insetY = 20;
+    const bandH = h - insetY * 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y + insetY, w, bandH);
+    ctx.clip();
+
+    // Red outer frame & swooped left emblem block
+    ctx.fillStyle = '#c8102e';
+    ctx.fillRect(x, y + insetY, w, bandH);
+
+    // White curved right field for wordmark
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.44, y + insetY + 2);
+    ctx.lineTo(x + w, y + insetY + 2);
+    ctx.lineTo(x + w, y + insetY + bandH - 2);
+    ctx.lineTo(x + w * 0.36, y + insetY + bandH - 2);
+    ctx.quadraticCurveTo(x + w * 0.24, y + insetY + bandH * 0.5, x + w * 0.44, y + insetY + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Golden traditional Palembang knot emblem on red left field
+    const gx = x + w * 0.16;
+    const gy = y + h * 0.5;
+    ctx.strokeStyle = '#f5c242';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(gx - 10, gy - 8, 12, 7, -0.45, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(gx + 10, gy - 8, 12, 7, 0.45, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(gx, gy - 14);
+    ctx.bezierCurveTo(gx - 14, gy + 4, gx + 14, gy + 10, gx, gy + 24);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(gx, gy - 14);
+    ctx.bezierCurveTo(gx + 14, gy + 4, gx - 14, gy + 10, gx, gy + 24);
+    ctx.stroke();
+
+    // Navy italic "Sriwijaya Air" wordmark + red/navy underlines
+    ctx.fillStyle = '#1e2c6d';
+    ctx.font = 'italic 800 24px Georgia, serif';
+    ctx.fillText('Sriwijaya Air', x + w * 0.34, y + h * 0.5 + 3);
+
+    ctx.fillStyle = '#c8102e';
+    ctx.fillRect(x + w * 0.34, y + h * 0.5 + 9, w * 0.62, 2.2);
+    ctx.fillStyle = '#1e2c6d';
+    ctx.fillRect(x + w * 0.34, y + h * 0.5 + 13, w * 0.62, 1.8);
+
+    ctx.fillStyle = '#1e2c6d';
+    ctx.font = 'italic 700 11px Georgia, serif';
+    ctx.fillText('Your Flying Partner', x + w * 0.53, y + h * 0.5 + 27);
+
+    ctx.restore();
+  };
+
+  const redraw = (now = new Date()) => {
+    // 1. Deep InJourney Maritime Teal-Navy Background
+    const bgGrad = ctx.createLinearGradient(0, 0, 1024, 576);
+    bgGrad.addColorStop(0, '#0a2f44');
+    bgGrad.addColorStop(1, '#0d364d');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, 1024, 576);
+
+    // 2. Crisp Cyan-Blue Grid Dividers (exact layout of front.jpg)
+    const splitX = 278;
+    ctx.strokeStyle = '#2997d1';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(splitX, 0);
+    ctx.lineTo(splitX, 576);
+    ctx.stroke();
+
+    const rowY = [192, 374, 534];
+    rowY.forEach((ry) => {
+      ctx.beginPath();
+      ctx.moveTo(splitX, ry);
+      ctx.lineTo(1024, ry);
+      ctx.stroke();
+    });
+
+    // 3. LEFT SIDEBAR: InJourney Airports Logo + Belt 7 + Date & Live Clock
+    // "injourney" wordmark with colorful segmented ring "o"
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '400 32px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('inj  urney', splitX * 0.5, 62);
+    // Colorful segmented "o" circle inside "injourney"
+    const ox = splitX * 0.5 - 26;
+    const oy = 53;
+    const segs: Array<[number, number, string]> = [
+      [-Math.PI * 0.7, Math.PI * 0.05, '#22c55e'],
+      [Math.PI * 0.05, Math.PI * 0.75, '#38bdf8'],
+      [Math.PI * 0.75, Math.PI * 1.3, '#f59e0b'],
+    ];
+    segs.forEach(([a0, a1, col]) => {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.arc(ox, oy, 8.5, a0, a1);
+      ctx.stroke();
+    });
+
+    // "A I R P O R T S" cyan spaced subtitle
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '600 14px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('A  I  R  P  O  R  T  S', splitX * 0.5, 88);
+
+    // "Belt" + HUGE bold amber "7"
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = '700 44px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('Belt', splitX * 0.5, 224);
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = '700 124px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('7', splitX * 0.5, 336);
+
+    // Bottom Date & Live 24h Clock
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dateStr = `${days[now.getDay()]}, ${String(now.getDate()).padStart(2, '0')} ${months[now.getMonth()]} ${now.getFullYear()}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '500 20px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(dateStr, splitX * 0.5, 480);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 62px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(timeStr, splitX * 0.5, 542);
+    ctx.textAlign = 'left';
+
+    // 4. RIGHT PANEL: 3 Authentic Flight Baggage Rows (Ternate JT-897, Surabaya JT-780, Jayapura SJ-702)
+    const flights = [
+      {
+        airline: 'lion' as const,
+        city: 'Ternate',
+        code: 'JT-897',
+        status: 'Landing 13:25',
+        statusColor: '#22c55e',
+        top: 14,
+        rowH: 178,
+      },
+      {
+        airline: 'lion' as const,
+        city: 'Surabaya',
+        code: 'JT-780',
+        status: 'Estimate 14:48',
+        statusColor: '#f59e0b',
+        top: 196,
+        rowH: 178,
+      },
+      {
+        airline: 'sriwijaya' as const,
+        city: 'Jayapura',
+        code: 'SJ-702',
+        status: 'Estimate 15:59',
+        statusColor: '#f59e0b',
+        top: 378,
+        rowH: 154,
+      },
+    ];
+
+    flights.forEach((f) => {
+      const cardX = splitX + 18;
+      const cardY = f.top + 14;
+      const cardW = 248;
+      const cardH = f.rowH - 28;
+
+      if (f.airline === 'lion') {
+        drawLionAirBadge(cardX, cardY, cardW, cardH);
+      } else {
+        drawSriwijayaBadge(cardX, cardY, cardW, cardH);
+      }
+
+      const textX = cardX + cardW + 22;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '600 32px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(f.city, textX, cardY + 42);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '600 32px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(f.code, textX, cardY + 86);
+
+      ctx.fillStyle = f.statusColor;
+      ctx.font = '600 26px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(f.status, textX, cardY + 128);
+    });
+
+    texture.needsUpdate = true;
+  };
+
+  redraw();
+  return { texture, redraw };
+}
+
+export function createBidsRearPanelTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 576;
+  const ctx = canvas.getContext('2d')!;
+
+  // Matte charcoal industrial rear housing
+  const bg = ctx.createLinearGradient(0, 0, 0, 576);
+  bg.addColorStop(0, '#272a2f');
+  bg.addColorStop(0.5, '#222529');
+  bg.addColorStop(1, '#1c1f23');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1024, 576);
+
+  // Outer perimeter chassis seam & recessed screw bosses (matching rear.jpg)
+  ctx.strokeStyle = '#121417';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(10, 10, 1004, 556);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(22, 22, 980, 532);
+
+  // Perimeter Phillips screw dots
+  const drawScrew = (sx: number, sy: number) => {
+    ctx.fillStyle = '#101215';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#3f444c';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  };
+  [38, 190, 355, 669, 834, 986].forEach((x) => {
+    drawScrew(x, 22);
+    drawScrew(x, 554);
+  });
+  [120, 288, 456].forEach((y) => {
+    drawScrew(22, y);
+    drawScrew(1002, y);
+  });
+
+  // Stepped trapezoidal chamfered inner electronics housing outline
+  ctx.strokeStyle = '#15181c';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(98, 96, 828, 384);
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1.8;
+  ctx.strokeRect(102, 100, 820, 376);
+
+  // Diagonal mold draft lines from corners to stepped body
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+  ctx.lineWidth = 2.5;
+  [
+    [22, 22, 98, 96],
+    [1002, 22, 926, 96],
+    [22, 554, 98, 480],
+    [1002, 554, 926, 480],
+  ].forEach(([x0, y0, x1, y1]) => {
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  });
+
+  // Helper for authentic industrial ventilation perforation clusters
+  const drawVentBlock = (x: number, y: number, cols: number, rows: number, dx = 8.5, dy = 9) => {
+    ctx.fillStyle = '#0d0f12';
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        ctx.fillRect(x + c * dx, y + r * dy, 4.5, 4.5);
+      }
+    }
+  };
+  // Far left & far right vertical chamfer vents
+  drawVentBlock(48, 128, 4, 15, 7.5, 7.5);
+  drawVentBlock(946, 128, 4, 15, 7.5, 7.5);
+  // Upper-left dual horizontal vent banks
+  drawVentBlock(212, 46, 16, 5, 8.2, 8.2);
+  drawVentBlock(212, 114, 16, 6, 8.2, 8.2);
+  // Upper-right dual horizontal vent banks
+  drawVentBlock(684, 46, 16, 5, 8.2, 8.2);
+  drawVentBlock(684, 114, 16, 6, 8.2, 8.2);
+  // Lower-right horizontal vent bank
+  drawVentBlock(686, 404, 16, 5, 8.2, 8.2);
+
+  // Center Technical Spec & Barcode Compliance Nameplate Sticker (matching rear.jpg)
+  const lx = 446;
+  const ly = 248;
+  const lw = 132;
+  const lh = 76;
+  ctx.fillStyle = '#252930';
+  ctx.fillRect(lx, ly, lw, lh);
+  ctx.strokeStyle = '#3c424d';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(lx, ly, lw, lh);
+
+  // Top-right white barcode box
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(lx + 62, ly + 5, 64, 15);
+  ctx.fillStyle = '#0f172a';
+  for (let i = 0; i < 20; i++) {
+    ctx.fillRect(lx + 66 + i * 2.9, ly + 7, i % 3 === 0 ? 1.8 : 1.0, 10);
+  }
+  // Left micro-spec lines
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '600 6px "IBM Plex Mono", monospace';
+  ctx.fillText('MODEL: BIDS-55L-UPG', lx + 5, ly + 14);
+  ctx.fillText('POWER: 100-240V~ 50/60Hz', lx + 5, ly + 23);
+  ctx.fillText('INPUT: HDMI · LAN · USB', lx + 5, ly + 32);
+  ctx.fillText('INJOURNEY AIRPORTS', lx + 5, ly + 41);
+
+  // CE & FC logos
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '700 13px sans-serif';
+  ctx.fillText('CE  FC', lx + 78, ly + 37);
+
+  // Lower-left serial barcode
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(lx + 6, ly + 48, 62, 15);
+  ctx.fillStyle = '#0f172a';
+  for (let i = 0; i < 18; i++) {
+    ctx.fillRect(lx + 9 + i * 3.1, ly + 50, i % 2 === 0 ? 1.6 : 1.0, 10);
+  }
+  // Compliance icons bottom-right (double square + WEEE)
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(lx + 78, ly + 48, 12, 12);
+  ctx.strokeRect(lx + 81, ly + 51, 6, 6);
+  ctx.strokeRect(lx + 100, ly + 48, 12, 13);
+  ctx.beginPath();
+  ctx.moveTo(lx + 98, ly + 47);
+  ctx.lineTo(lx + 114, ly + 62);
+  ctx.moveTo(lx + 114, ly + 47);
+  ctx.lineTo(lx + 98, ly + 62);
+  ctx.stroke();
+
+  // Lower-left Recessed I/O Connector Bay Shroud Graphic
+  ctx.fillStyle = '#15181c';
+  ctx.fillRect(224, 330, 224, 146);
+  ctx.strokeStyle = '#2d323a';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(224, 330, 224, 146);
+  // Upper connector bay port shelf header
+  ctx.fillStyle = '#1e2228';
+  ctx.fillRect(228, 334, 216, 40);
+  ctx.fillStyle = '#64748b';
+  ctx.font = '700 9px "IBM Plex Mono", monospace';
+  ctx.fillText('AC IN', 248, 366);
+  ctx.fillText('HDMI', 302, 366);
+  ctx.fillText('LAN RJ45', 344, 366);
+  ctx.fillText('USB', 410, 366);
 
   return finalizeTexture(canvas, maxAnisotropy);
 }
@@ -2320,5 +3126,567 @@ export function createFacadeLouverTexture(maxAnisotropy: number): THREE.CanvasTe
 
   return finalizeTexture(canvas, maxAnisotropy, 3, 1);
 }
+
+// =========================================================================
+// AUTHENTIC BOSCH PRAESENSA / PRAESIDEO PAS PAGING & 42U RACK TEXTURES
+// =========================================================================
+
+export function createBoschPagingScreenTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  // Matte graphite faceplate surround
+  ctx.fillStyle = '#2d3136';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Subtle brushed silver perimeter border
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(5, 5, 502, 502);
+
+  // Upper perforated monitor speaker vent grid (left & right of mic base collar)
+  ctx.fillStyle = '#111418';
+  for (let r = 0; r < 6; r++) {
+    for (let c = 0; c < 13; c++) {
+      ctx.beginPath();
+      ctx.arc(38 + c * 12.5, 34 + r * 11, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(320 + c * 12.5, 34 + r * 11, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Glossy black flush glass bezel around touchscreen
+  ctx.fillStyle = '#0c0f13';
+  ctx.beginPath();
+  ctx.roundRect(36, 128, 440, 260, 12);
+  ctx.fill();
+
+  // Green Power LED & Fault triangle icon (top-left of glass bezel)
+  ctx.strokeStyle = '#22c55e';
+  ctx.lineWidth = 3.2;
+  ctx.beginPath();
+  ctx.arc(70, 152, 7.5, -Math.PI * 0.25, Math.PI * 1.25);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(70, 142);
+  ctx.lineTo(70, 152);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(96, 144);
+  ctx.lineTo(104, 158);
+  ctx.lineTo(88, 158);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Centered BOSCH logo above touchscreen
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(216, 152, 8.5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(212, 146, 2.5, 12);
+  ctx.fillRect(218, 146, 2.5, 12);
+  ctx.fillRect(212, 151, 8, 2.2);
+
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '800 18px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('BOSCH', 232, 158);
+
+  // Bright Sky-Blue Capacitive Touchscreen Display ("Music" & "Fault log")
+  const lcdX = 62;
+  const lcdY = 178;
+  const lcdW = 388;
+  const lcdH = 186;
+  const lcdGrad = ctx.createLinearGradient(lcdX, lcdY, lcdX, lcdY + lcdH);
+  lcdGrad.addColorStop(0, '#0ea5e9');
+  lcdGrad.addColorStop(0.22, '#0284c7');
+  lcdGrad.addColorStop(0.55, '#0369a1');
+  lcdGrad.addColorStop(1, '#0284c7');
+  ctx.fillStyle = lcdGrad;
+  ctx.fillRect(lcdX, lcdY, lcdW, lcdH);
+
+  // Top translucent status bar gloss
+  ctx.fillStyle = 'rgba(255,255,255,0.16)';
+  ctx.fillRect(lcdX, lcdY, lcdW, 24);
+
+  // Two glass UI tiles: "Music" & "Fault log"
+  const drawTile = (tx: number, title: string, icon: 'music' | 'fault') => {
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath();
+    ctx.roundRect(tx, lcdY + 34, 166, 122, 8);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    if (icon === 'music') {
+      // Musical note icon
+      ctx.fillRect(tx + 72, lcdY + 56, 4, 34);
+      ctx.fillRect(tx + 92, lcdY + 52, 4, 34);
+      ctx.fillRect(tx + 72, lcdY + 52, 24, 6);
+      ctx.beginPath();
+      ctx.ellipse(tx + 69, lcdY + 90, 6.5, 4.5, -0.25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(tx + 89, lcdY + 86, 6.5, 4.5, -0.25, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Warning triangle icon
+      ctx.beginPath();
+      ctx.moveTo(tx + 83, lcdY + 52);
+      ctx.lineTo(tx + 104, lcdY + 90);
+      ctx.lineTo(tx + 62, lcdY + 90);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#0369a1';
+      ctx.fillRect(tx + 81, lcdY + 65, 4, 13);
+      ctx.beginPath();
+      ctx.arc(tx + 83, lcdY + 83, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '600 22px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, tx + 83, lcdY + 132);
+    ctx.textAlign = 'left';
+  };
+  drawTile(lcdX + 22, 'Music', 'music');
+  drawTile(lcdX + 200, 'Fault log', 'fault');
+
+  // 3 Pagination dots at bottom center of LCD
+  [0, 1, 2].forEach((i) => {
+    ctx.fillStyle = i === 1 ? '#ffffff' : 'rgba(255,255,255,0.45)';
+    ctx.beginPath();
+    ctx.arc(lcdX + lcdW / 2 - 16 + i * 16, lcdY + lcdH - 12, 3.8, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Bottom PTT Talk Button Graphic (surrounded by 3D silver bezel)
+  ctx.fillStyle = '#181c21';
+  ctx.beginPath();
+  ctx.roundRect(142, 424, 228, 52, 8);
+  ctx.fill();
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // White speaking person icon on PTT button
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(262, 444, 6.5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(262, 464, 12, Math.PI * 1.15, Math.PI * 1.85);
+  ctx.stroke();
+  // Sound waves left of speaking icon
+  ctx.beginPath();
+  ctx.arc(248, 446, 6, Math.PI * 0.72, Math.PI * 1.28);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(248, 446, 11, Math.PI * 0.75, Math.PI * 1.25);
+  ctx.stroke();
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
+export function createBoschPagingKeypadTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  // Matte graphite faceplate + silver trim border
+  ctx.fillStyle = '#2a2e33';
+  ctx.fillRect(0, 0, 512, 512);
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(5, 5, 502, 502);
+
+  // Dark inner key matrix bed
+  ctx.fillStyle = '#191c20';
+  ctx.beginPath();
+  ctx.roundRect(26, 26, 460, 460, 10);
+  ctx.fill();
+
+  // Header & divider grey strips
+  ctx.fillStyle = '#3f444c';
+  ctx.fillRect(42, 44, 428, 30);
+  ctx.fillRect(42, 232, 428, 30);
+
+  // White label strip helper
+  const drawLabelStrip = (cx: number, y: number, lines: string[]) => {
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillRect(cx - 56, y, 112, 32);
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(cx - 56, y, 112, 32);
+
+    ctx.fillStyle = '#0f172a';
+    ctx.textAlign = 'center';
+    if (lines.length === 1) {
+      ctx.font = '700 10px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(lines[0], cx, y + 20);
+    } else {
+      ctx.font = '700 9px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(lines[0], cx, y + 13);
+      ctx.fillText(lines[1], cx, y + 25);
+    }
+    ctx.textAlign = 'left';
+  };
+
+  // Status LED + small warning triangle next to each key column
+  const cols = [116, 256, 396];
+  const indicatorRows = [104, 198, 294, 392];
+  indicatorRows.forEach((ry) => {
+    cols.forEach((cx) => {
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(cx + 58, ry - 8, 9, 4);
+      ctx.fillStyle = '#64748b';
+      ctx.beginPath();
+      ctx.moveTo(cx + 62, ry + 2);
+      ctx.lineTo(cx + 67, ry + 11);
+      ctx.lineTo(cx + 57, ry + 11);
+      ctx.closePath();
+      ctx.fill();
+    });
+  });
+
+  // Row 1 labels (under 3 red emergency/confirm keys)
+  drawLabelStrip(cols[0], 138, ['ZONE CN1']);
+  drawLabelStrip(cols[1], 138, ['ZONE CN2']);
+  drawLabelStrip(cols[2], 138, ['ZONE CN3']);
+
+  // Row 3 labels (under Departure/Arrival zone buttons)
+  drawLabelStrip(cols[0], 328, ['DEPARTURE', 'INTERNATIONAL']);
+  drawLabelStrip(cols[1], 328, ['ARRIVAL', 'INTERNATIONAL']);
+  drawLabelStrip(cols[2], 328, ['DEPARTURE', 'DOMESTIC']);
+
+  // Row 4 labels (bottom public area & zone buttons)
+  drawLabelStrip(cols[0], 426, ['ARRIVAL DOMESTIC']);
+  drawLabelStrip(cols[1], 426, ['ALL PUBLIC AREA']);
+  drawLabelStrip(cols[2], 426, ['ZONE 6']);
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
+export function createBoschPagingRearTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#2b2f35';
+  ctx.fillRect(0, 0, 512, 256);
+
+  // Upper circular cooling perforations left & right of spec label
+  ctx.fillStyle = '#0f1216';
+  for (let r = 0; r < 6; r++) {
+    for (let c = 0; c < 10; c++) {
+      ctx.beginPath();
+      ctx.arc(54 + c * 11, 34 + r * 11, 3.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(356 + c * 11, 34 + r * 11, 3.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // White BOSCH Product Compliance & Barcode Sticker (matching paging_rear.jpg)
+  ctx.fillStyle = '#f1f5f9';
+  ctx.beginPath();
+  ctx.roundRect(182, 24, 148, 92, 6);
+  ctx.fill();
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '800 16px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('BOSCH', 206, 44);
+  ctx.font = '600 9px "IBM Plex Mono", monospace';
+  ctx.fillText('PRA-CSLD · CALL STATION', 190, 58);
+  ctx.fillText('OMNEO PoE · 24-48V DC', 190, 69);
+  ctx.font = '700 13px sans-serif';
+  ctx.fillText('CE', 284, 66);
+  // Barcode bars
+  ctx.fillStyle = '#0f172a';
+  for (let i = 0; i < 34; i++) {
+    ctx.fillRect(190 + i * 3.1, 80, i % 3 === 0 ? 2 : 1.1, 20);
+  }
+
+  // Recessed lower connector bay graphic
+  ctx.fillStyle = '#181b20';
+  ctx.beginPath();
+  ctx.roundRect(42, 134, 428, 102, 8);
+  ctx.fill();
+  ctx.strokeStyle = '#3b4048';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '600 10px "IBM Plex Mono", monospace';
+  ctx.fillText('PWR', 78, 162);
+  ctx.fillText('ETH 1', 142, 162);
+  ctx.fillText('ETH 2', 202, 162);
+  ctx.fillText('Audio', 260, 162);
+  ctx.fillText('HP', 306, 162);
+  ctx.fillText('XLR', 354, 162);
+  ctx.fillText('COM', 416, 162);
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
+export function createBoschRackControllerTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d')!;
+
+  // Dark charcoal Bosch Network Controller faceplate (matching top of rack_front.jpg)
+  ctx.fillStyle = '#252a30';
+  ctx.fillRect(0, 0, 512, 160);
+  ctx.strokeStyle = '#111418';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(3, 3, 506, 154);
+
+  // Left & right dark perforated intake grille panels
+  ctx.fillStyle = '#13161a';
+  ctx.beginPath();
+  ctx.roundRect(14, 16, 56, 128, 8);
+  ctx.roundRect(442, 16, 56, 128, 8);
+  ctx.fill();
+  ctx.fillStyle = '#07090b';
+  for (let y = 26; y < 138; y += 8) {
+    for (let x = 22; x < 64; x += 8) {
+      ctx.fillRect(x, y, 4, 4);
+      ctx.fillRect(x + 428, y, 4, 4);
+    }
+  }
+
+  // Iconic centered brushed-silver pill bezel surrounding LCD + rotary knob
+  ctx.fillStyle = '#cbd5e1';
+  ctx.beginPath();
+  ctx.roundRect(148, 30, 216, 74, 37);
+  ctx.fill();
+  ctx.fillStyle = '#1b1f24';
+  ctx.beginPath();
+  ctx.roundRect(156, 37, 200, 60, 30);
+  ctx.fill();
+
+  // Lime-green backlit character LCD window
+  ctx.fillStyle = '#84cc16';
+  ctx.fillRect(178, 49, 124, 36);
+  ctx.fillStyle = '#1a2e05';
+  ctx.font = '700 13px "IBM Plex Mono", monospace';
+  ctx.fillText('PRAESIDEO NCO', 184, 65);
+  ctx.font = '600 11px "IBM Plex Mono", monospace';
+  ctx.fillText('PAS ONLINE · OK', 184, 80);
+
+  // Silver rotary navigation encoder dial right of LCD
+  ctx.fillStyle = '#e2e8f0';
+  ctx.beginPath();
+  ctx.arc(328, 67, 16, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#64748b';
+  ctx.beginPath();
+  ctx.arc(328, 67, 11, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Green power status LED right of bezel
+  ctx.fillStyle = '#22c55e';
+  ctx.beginPath();
+  ctx.arc(392, 67, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bottom centered BOSCH logo
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = '800 15px "Plus Jakarta Sans", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('(H)  BOSCH', 256, 134);
+  ctx.textAlign = 'left';
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
+export function createBoschRackSwitchTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 80;
+  const ctx = canvas.getContext('2d')!;
+
+  // Brushed silver 1U managed OMNEO Ethernet switch (matching rack_front.jpg U39)
+  const grad = ctx.createLinearGradient(0, 0, 0, 80);
+  grad.addColorStop(0, '#e2e8f0');
+  grad.addColorStop(0.5, '#cbd5e1');
+  grad.addColorStop(1, '#94a3b8');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 80);
+  ctx.strokeStyle = '#64748b';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(2, 2, 508, 76);
+
+  // Left switch label & status LEDs
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '800 13px "IBM Plex Mono", monospace';
+  ctx.fillText('OMNEO GbE SWITCH', 18, 34);
+  ctx.fillStyle = '#475569';
+  ctx.font = '600 10px "IBM Plex Mono", monospace';
+  ctx.fillText('24P PoE+ · 4x SFP', 18, 52);
+
+  // 2x12 RJ45 port blocks + 4 SFP cages on right
+  for (let b = 0; b < 2; b++) {
+    const bx = 190 + b * 116;
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(bx, 14, 106, 52);
+    for (let c = 0; c < 6; c++) {
+      for (let r = 0; r < 2; r++) {
+        ctx.fillStyle = b === 1 && c >= 2 ? '#0284c7' : '#1e293b';
+        ctx.fillRect(bx + 5 + c * 16.5, 19 + r * 22, 13, 17);
+        ctx.fillStyle = b === 1 ? '#22c55e' : '#facc15';
+        ctx.fillRect(bx + 6 + c * 16.5, 16 + r * 22, 5, 2.5);
+      }
+    }
+  }
+  // 4x SFP fiber slots far right
+  for (let s = 0; s < 4; s++) {
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(426 + s * 20, 20, 16, 40);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(428 + s * 20, 24, 12, 10);
+  }
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
+export function createBoschAmpFrontTexture(maxAnisotropy: number, is2U = false): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = is2U ? 128 : 72;
+  const ctx = canvas.getContext('2d')!;
+
+  // Sleek matte-black BOSCH PRAESENSA/PRAESIDEO amplifier front panel
+  ctx.fillStyle = '#15181d';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Thin silver top/bottom contour accent line
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(0, 0, canvas.width, 3);
+  ctx.fillRect(0, canvas.height - 3, canvas.width, 3);
+
+  // Small white asset label sticker on upper-left (exact detail from rack_front.jpg)
+  ctx.fillStyle = '#f1f5f9';
+  ctx.fillRect(44, is2U ? 16 : 10, 48, is2U ? 16 : 11);
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '700 8px "IBM Plex Mono", monospace';
+  ctx.fillText(is2U ? 'AMP-BKP' : 'AMP-100V', 47, is2U ? 27 : 18);
+
+  // Centered white BOSCH wordmark
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = `800 ${is2U ? 16 : 13}px "Plus Jakarta Sans", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('BOSCH', 256, is2U ? 30 : 22);
+  ctx.textAlign = 'left';
+
+  // Glowing emerald green channel/power status LEDs left & right (matching rack_front.jpg)
+  const ledY = is2U ? 82 : 46;
+  [54, 68, 82, 96, 110, 326, 352, 412, 444].forEach((lx, idx) => {
+    ctx.fillStyle = idx === 7 ? '#38bdf8' : '#22c55e';
+    ctx.beginPath();
+    ctx.arc(lx, ledY, is2U ? 4.2 : 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Subtle vent louvers along bottom edge
+  ctx.fillStyle = '#090b0e';
+  for (let x = 140; x < 310; x += 10) {
+    ctx.fillRect(x, canvas.height - 14, 6, 6);
+  }
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
+export function createBoschAmpRearTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 72;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#181c22';
+  ctx.fillRect(0, 0, 512, 72);
+  ctx.strokeStyle = '#334155';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(2, 2, 508, 68);
+
+  // 4 Iconic Bright Mint-Green Phoenix Euroblock 100V Output Terminal Blocks (matching rack_rear.webp!)
+  [58, 168, 286, 386].forEach((px) => {
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(px, 22, 56, 28);
+    ctx.strokeStyle = '#14532d';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px, 22, 56, 28);
+    ctx.fillStyle = '#14532d';
+    for (let s = 0; s < 6; s++) {
+      ctx.fillRect(px + 5 + s * 8.5, 29, 4.5, 14);
+    }
+  });
+
+  // Dual RJ45 OMNEO ports on far right rear
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(460, 20, 18, 28);
+  ctx.fillRect(482, 20, 18, 28);
+  ctx.fillStyle = '#22c55e';
+  ctx.fillRect(462, 16, 6, 3);
+  ctx.fillRect(484, 16, 6, 3);
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
+export function createBoschDeltaPsuTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 192;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+
+  // White upper housing + iconic vivid Delta sky-blue lower face (matching rack_front.jpg lower bay!)
+  ctx.fillStyle = '#f1f5f9';
+  ctx.fillRect(0, 0, 192, 140);
+  ctx.fillStyle = '#0284c7';
+  ctx.fillRect(0, 140, 192, 116);
+
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '800 18px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('DELTA', 22, 42);
+  ctx.fillStyle = '#475569';
+  ctx.font = '600 12px "IBM Plex Mono", monospace';
+  ctx.fillText('CliQ 48V DC', 22, 66);
+  ctx.fillText('DIN-RAIL PSU', 22, 86);
+
+  // Cooling vent slots & green DC OK LED
+  ctx.fillStyle = '#1e293b';
+  for (let i = 0; i < 6; i++) {
+    ctx.fillRect(18 + i * 26, 102, 14, 24);
+  }
+  ctx.fillStyle = '#22c55e';
+  ctx.beginPath();
+  ctx.arc(154, 42, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // White terminal labels on blue lower cover
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 14px "IBM Plex Mono", monospace';
+  ctx.fillText('+V  -V  DC OK', 22, 186);
+  ctx.fillStyle = '#0369a1';
+  ctx.fillRect(16, 206, 160, 32);
+
+  return finalizeTexture(canvas, maxAnisotropy);
+}
+
 
 

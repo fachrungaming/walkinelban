@@ -5,11 +5,12 @@ import {
   FastForward,
   Layers,
   MousePointerClick,
+  Server,
 } from 'lucide-react';
 import { DirectoryView } from './components/DirectoryView';
 import { EquipmentInspectorModal } from './components/EquipmentInspectorModal';
-import { LogbookTrackerHUD } from './components/LogbookTrackerHUD';
 import { PasControllerPanel } from './components/PasControllerPanel';
+import { ServerRackDigitalTwinModal } from './components/ServerRackDigitalTwinModal';
 import { TOCEvaluationModal } from './components/TOCEvaluationModal';
 import { LIGHT_CIRCUIT_META, TopHeader } from './components/TopHeader';
 import {
@@ -71,12 +72,12 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'3d' | 'directory'>('3d');
   const [currentZoneId, setCurrentZoneId] = useState<ZoneId>('lobby');
   const [introPlaying, setIntroPlaying] = useState(true);
+  const [introTourZoneId, setIntroTourZoneId] = useState<ZoneId>('lobby');
   const [progress, setProgress] = useState<LearningProgressState>(loadSavedProgress);
   const [hoverTelemetry, setHoverTelemetry] = useState<HoverTelemetryData | null>(null);
   const [activeLayerFilter, setActiveLayerFilter] = useState<SubsystemLayer | 'ALL'>('ALL');
   const [dockExpanded, setDockExpanded] = useState(true);
   const [zoneToast, setZoneToast] = useState<string | null>(null);
-  const [recentLogFlash, setRecentLogFlash] = useState<string | null>(null);
   const [webglFallback, setWebglFallback] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDayMode>('day');
   const [lightCircuits, setLightCircuits] = useState<LightCircuitState>({
@@ -93,6 +94,7 @@ export default function App() {
     componentId?: string;
   } | null>(null);
   const [tocModalOpen, setTocModalOpen] = useState(false);
+  const [serverRackModalOpen, setServerRackModalOpen] = useState(false);
 
   const canvasHostRef = useRef<HTMLDivElement>(null);
   const sceneCtrlRef = useRef<AirportSceneController | null>(null);
@@ -130,6 +132,9 @@ export default function App() {
         onIntroStateChange: (playing) => {
           setIntroPlaying(playing);
         },
+        onIntroZoneChange: (zoneId) => {
+          setIntroTourZoneId(zoneId);
+        },
         onHoverTelemetry: (data) => {
           setHoverTelemetry(data);
         },
@@ -140,6 +145,10 @@ export default function App() {
         onOpenTocModal: () => {
           setHoverTelemetry(null);
           setTocModalOpen(true);
+        },
+        onOpenServerRackTwin: () => {
+          setHoverTelemetry(null);
+          setServerRackModalOpen(true);
         },
         onToggleLightCircuit: (circuitId) => {
           setLightCircuits((prev) => {
@@ -233,36 +242,19 @@ export default function App() {
     [showZoneToast]
   );
 
-  const handleOpenTocLogbook = useCallback(() => {
-    setViewMode('3d');
-    setInspectedTarget(null);
-    setCurrentZoneId('toc');
-    sceneCtrlRef.current?.teleportToZone('toc');
-    setTocModalOpen(true);
+  const handleLogComponent = useCallback((componentId: string) => {
+    const comp = COMPONENT_MAP[componentId];
+    if (!comp) return;
+    playLogbookConfirm();
+    setProgress((prev) => {
+      if (prev.loggedComponentIds.includes(componentId)) return prev;
+      return {
+        ...prev,
+        loggedComponentIds: [...prev.loggedComponentIds, componentId],
+        totalXp: prev.totalXp + comp.xpReward,
+      };
+    });
   }, []);
-
-  const handleLogComponent = useCallback(
-    (componentId: string) => {
-      const comp = COMPONENT_MAP[componentId];
-      if (!comp) return;
-      playLogbookConfirm();
-      setProgress((prev) => {
-        if (prev.loggedComponentIds.includes(componentId)) return prev;
-        return {
-          ...prev,
-          loggedComponentIds: [...prev.loggedComponentIds, componentId],
-          totalXp: prev.totalXp + comp.xpReward,
-        };
-      });
-      setRecentLogFlash(
-        lang === 'id'
-          ? `+${comp.xpReward} XP · ${comp.code} disimpan ke Logbook`
-          : `+${comp.xpReward} XP · ${comp.code} saved to Logbook`
-      );
-      window.setTimeout(() => setRecentLogFlash(null), 2600);
-    },
-    [lang]
-  );
 
   const handleSimulationCompleted = useCallback((systemId: SystemId) => {
     setProgress((prev) => {
@@ -322,7 +314,7 @@ export default function App() {
     : false;
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-slate-950 select-none">
+    <div className="relative w-full h-full overflow-hidden bg-[#323232] text-[#F5F3EE] select-none font-seasons">
       {/* Persistent Top Header */}
       <TopHeader
         lang={lang}
@@ -334,9 +326,6 @@ export default function App() {
         }}
         currentZoneId={currentZoneId}
         onSelectZone={handleSelectZone}
-        loggedCount={progress.loggedComponentIds.length}
-        totalXp={progress.totalXp}
-        onOpenTocLogbook={handleOpenTocLogbook}
         timeOfDay={timeOfDay}
         onToggleTimeOfDay={handleToggleTimeOfDay}
         lightCircuits={lightCircuits}
@@ -352,11 +341,11 @@ export default function App() {
 
       {/* WebGL Context Lost / Unavailable Graceful Fallback */}
       {webglFallback && viewMode === '3d' && (
-        <div className="fixed inset-0 top-16 z-10 bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
-          <h2 className="text-xl font-bold">
+        <div className="fixed inset-0 top-16 z-10 bg-[#323232] text-[#F5F3EE] flex flex-col items-center justify-center p-6 text-center">
+          <h2 className="font-charm text-2xl sm:text-3xl font-bold text-[#FFDB00]">
             {lang === 'id' ? 'Mode Direktori 2D Tersedia' : '2D Directory Fallback Available'}
           </h2>
-          <p className="text-sm text-slate-300 mt-2 max-w-md">
+          <p className="text-sm text-[#D6D3CB] mt-2 max-w-md">
             {lang === 'id'
               ? 'Konteks WebGL 3D sedang tidak aktif pada perangkat ini. Anda tetap dapat mempelajari seluruh 26 komponen ElBan dan mengikuti evaluasi TOC melalui Mode Direktori.'
               : 'WebGL 3D context is unavailable on this device. You can still study all 26 ElBan components and complete the TOC assessment via Directory Mode.'}
@@ -364,7 +353,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setViewMode('directory')}
-            className="mt-5 px-5 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-sm font-semibold cursor-pointer"
+            className="mt-5 px-5 py-2.5 rounded-lg bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424] text-sm font-bold cursor-pointer transition-colors"
           >
             {lang === 'id' ? 'Buka Mode Direktori 2D' : 'Open 2D Directory Mode'}
           </button>
@@ -375,43 +364,69 @@ export default function App() {
       {viewMode === '3d' && !webglFallback && (
         <>
           {/* Contextual Zone Toast (Top-Center below Header) */}
-          {zoneToast && !introPlaying && !inspectedTarget && !tocModalOpen && (
+          {zoneToast && !introPlaying && !inspectedTarget && !tocModalOpen && !serverRackModalOpen && (
             <div className="fixed top-20 left-1/2 -translate-x-1/2 z-20 max-w-[92vw] pointer-events-none">
-              <div className="bg-[#0B192C]/95 text-white text-xs sm:text-sm font-medium px-4 py-2 rounded-lg border border-slate-700 shadow-lg text-center">
+              <div className="bg-[#323232]/96 text-[#F5F3EE] text-xs sm:text-sm font-medium px-4 py-2 rounded-lg border border-[#FFDB00]/45 shadow-lg text-center">
                 {zoneToast}
               </div>
+            </div>
+          )}
+
+          {/* Contextual Server Room Quick-Launch Button for 42U Digital Twin */}
+          {currentZoneId === 'server' && !introPlaying && !inspectedTarget && !tocModalOpen && !serverRackModalOpen && (
+            <div className="fixed top-20 right-4 z-20">
+              <button
+                type="button"
+                onClick={() => setServerRackModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424] text-xs sm:text-sm font-bold shadow-lg border border-[#FFDB00] flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Server className="w-4 h-4" />
+                <span>
+                  {lang === 'id'
+                    ? 'Buka 42U Rak Server Digital Twin'
+                    : 'Open 42U Server Rack Digital Twin'}
+                </span>
+              </button>
             </div>
           )}
 
           {/* Cinematic Intro Overlay with Skip Button */}
           {introPlaying && (
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-3 px-4 text-center">
-              <div className="bg-[#0B192C]/92 text-white px-5 py-3 rounded-xl border border-slate-700 shadow-xl max-w-lg">
-                <div className="font-mono-tech text-[11px] text-sky-400">
-                  WALK-IN ELBAN · VIRTUAL AIRPORT SITE VISIT
+              <div className="bg-[#323232]/95 text-[#F5F3EE] px-6 py-4 rounded-xl border border-[#FFDB00]/45 shadow-2xl max-w-xl w-full">
+                <div className="font-mono-tech text-[11px] text-[#FFDB00] tracking-wider">
+                  Walk-In ElBan · Virtual Airport Site Visit
                 </div>
-                <div className="text-sm sm:text-base font-bold mt-0.5">
+                <div className="font-charm text-xl sm:text-2xl font-bold text-white mt-1 leading-snug">
                   {lang === 'id'
                     ? 'Jelajahi 9 Zona Terminal & Bedah 6 Sistem Elektronika Bandara'
                     : 'Explore 9 Terminal Zones & Dissect 6 Airport Electronics Systems'}
+                </div>
+                <div className="text-sm text-[#D6D3CB] mt-1.5">
+                  {lang === 'id' ? 'Menjelajahi: ' : 'Exploring: '}
+                  <span className="text-[#FFDB00] font-semibold">
+                    {lang === 'id'
+                      ? ZONE_MAP[introTourZoneId]?.name_id
+                      : ZONE_MAP[introTourZoneId]?.name_en}
+                  </span>
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => sceneCtrlRef.current?.skipIntro()}
-                className="px-5 py-2.5 rounded-lg bg-white hover:bg-slate-100 text-slate-900 text-sm font-semibold shadow-lg border border-slate-200 flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 rounded-lg bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424] text-sm font-bold shadow-lg border border-[#FFDB00] flex items-center gap-2 cursor-pointer transition-colors"
               >
-                <FastForward className="w-4 h-4 text-sky-600" />
+                <FastForward className="w-4 h-4 text-[#242424]" />
                 <span>{lang === 'id' ? 'Lewati intro' : 'Skip intro'}</span>
               </button>
             </div>
           )}
 
           {/* Hover Technical Telemetry Tooltip */}
-          {hoverTelemetry && !inspectedTarget && !tocModalOpen && !introPlaying && (
+          {hoverTelemetry && !inspectedTarget && !tocModalOpen && !serverRackModalOpen && !introPlaying && (
             <div
-              className="fixed z-30 pointer-events-none bg-white/96 border border-slate-200 rounded-xl shadow-xl px-3.5 py-2.5 w-64"
+              className="fixed z-30 pointer-events-none bg-[#323232]/96 border border-[#FFDB00]/45 rounded-xl shadow-2xl px-3.5 py-2.5 w-64 text-[#F5F3EE]"
               style={{
                 left: Math.min(hoverTelemetry.screenX + 16, window.innerWidth - 280),
                 top: Math.min(hoverTelemetry.screenY + 16, window.innerHeight - 140),
@@ -424,22 +439,22 @@ export default function App() {
                   return (
                     <>
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-mono-tech font-semibold text-amber-700">
-                          {lang === 'id' ? 'SAKLAR LAMPU 3D' : '3D LIGHT SWITCH'}
+                        <span className="font-mono-tech font-semibold text-[#FFDB00]">
+                          {lang === 'id' ? 'Saklar Lampu 3D' : '3D Light Switch'}
                         </span>
                         <span
                           className={`font-mono-tech font-bold ${
-                            isOn ? 'text-emerald-700' : 'text-slate-500'
+                            isOn ? 'text-[#FFDB00]' : 'text-[#A8A59E]'
                           }`}
                         >
                           {isOn ? 'ON' : 'OFF'}
                         </span>
                       </div>
-                      <div className="text-sm font-bold text-slate-900 mt-0.5">
+                      <div className="font-charm text-base font-bold text-white mt-0.5">
                         {meta ? (lang === 'id' ? meta.name_id : meta.name_en) : ''}
                       </div>
-                      <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                        <MousePointerClick className="w-3.5 h-3.5 text-amber-600" />
+                      <div className="text-xs text-[#D6D3CB] mt-1 flex items-center gap-1">
+                        <MousePointerClick className="w-3.5 h-3.5 text-[#FFDB00]" />
                         <span>
                           {lang === 'id'
                             ? isOn
@@ -453,47 +468,67 @@ export default function App() {
                     </>
                   );
                 })()
+              ) : hoverTelemetry.isServerRackTwin ? (
+                <>
+                  <div className="font-mono-tech text-[11px] font-semibold text-[#FFDB00]">
+                    Zona 07 · Rak Server 42U
+                  </div>
+                  <div className="font-charm text-base font-bold text-white mt-0.5">
+                    42U Network Rack Digital Twin
+                  </div>
+                  <div className="text-xs text-[#D6D3CB] mt-0.5">
+                    MikroTik CRS326 · CCR2004 · KVM 18.5&quot; · Dell R360 · APC 3000VA · PDU
+                  </div>
+                  <div className="text-xs text-[#FFDB00] font-semibold mt-1.5 flex items-center gap-1">
+                    <MousePointerClick className="w-3.5 h-3.5 text-[#FFDB00]" />
+                    <span>
+                      {lang === 'id'
+                        ? 'Klik untuk membuka 42U Digital Twin'
+                        : 'Click to open 42U Digital Twin'}
+                    </span>
+                  </div>
+                </>
               ) : hoverTelemetry.isTocConsole ? (
                 <>
-                  <div className="font-mono-tech text-[11px] font-semibold text-sky-700">
-                    ZONA 09 · RUANG TOC
+                  <div className="font-mono-tech text-[11px] font-semibold text-[#FFDB00]">
+                    Zona 09 · Ruang TOC
                   </div>
-                  <div className="text-sm font-bold text-slate-900 mt-0.5">
+                  <div className="font-charm text-base font-bold text-white mt-0.5">
                     {lang === 'id' ? 'Meja Evaluasi & Logbook TOC' : 'TOC Evaluation & Logbook Desk'}
                   </div>
-                  <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                    <MousePointerClick className="w-3.5 h-3.5 text-sky-600" />
+                  <div className="text-xs text-[#D6D3CB] mt-1 flex items-center gap-1">
+                    <MousePointerClick className="w-3.5 h-3.5 text-[#FFDB00]" />
                     <span>{lang === 'id' ? 'Klik untuk membuka Uji Kompetensi' : 'Click to open Competency Test'}</span>
                   </div>
                 </>
               ) : (
                 hoverSystem && (
                   <>
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span className="font-mono-tech font-semibold text-sky-700">
+                    <div className="flex items-center justify-between text-[11px] text-[#B8B5AE]">
+                      <span className="font-mono-tech font-semibold text-[#FFDB00]">
                         {hoverSystem.code} · {hoverSystem.shortLabel}
                       </span>
                       {hoverComponent && (
-                        <span className={hoverIsLogged ? 'text-emerald-700 font-semibold' : 'text-amber-700 font-medium'}>
+                        <span className={hoverIsLogged ? 'text-emerald-400 font-semibold' : 'text-[#FFDB00] font-medium'}>
                           {hoverIsLogged
                             ? lang === 'id' ? 'Di Logbook' : 'Logged'
                             : lang === 'id' ? 'Belum dipelajari' : 'Not logged'}
                         </span>
                       )}
                     </div>
-                    <div className="text-sm font-bold text-slate-900 mt-0.5 leading-snug">
+                    <div className="font-charm text-base font-bold text-white mt-0.5 leading-snug">
                       {hoverComponent
                         ? lang === 'id' ? hoverComponent.name_id : hoverComponent.name_en
                         : lang === 'id' ? hoverSystem.name_id : hoverSystem.name_en}
                     </div>
                     {hoverComponent && (
-                      <div className="text-[11px] text-slate-600 mt-0.5">
+                      <div className="text-xs text-[#D6D3CB] mt-0.5">
                         {lang === 'id'
                           ? SUBSYSTEM_LAYER_LABELS[hoverComponent.subsystemLayer].id
                           : SUBSYSTEM_LAYER_LABELS[hoverComponent.subsystemLayer].en}
                       </div>
                     )}
-                    <div className="text-[11px] text-sky-700 font-medium mt-1.5 flex items-center gap-1">
+                    <div className="text-xs text-[#FFDB00] font-semibold mt-1.5 flex items-center gap-1">
                       <MousePointerClick className="w-3.5 h-3.5" />
                       <span>{lang === 'id' ? 'Klik untuk inspeksi 3D & simulasi' : 'Click for 3D dissection & simulation'}</span>
                     </div>
@@ -504,14 +539,14 @@ export default function App() {
           )}
 
           {/* Unified Collapsible Bottom Control Dock (Subsystem Filter + Walk Controls Hint) */}
-          {!introPlaying && !inspectedTarget && !tocModalOpen && (
+          {!introPlaying && !inspectedTarget && !tocModalOpen && !serverRackModalOpen && (
             <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center max-w-[min(860px,92vw)]">
               <button
                 type="button"
                 onClick={() => setDockExpanded((v) => !v)}
-                className="mb-1.5 px-3 py-1 rounded-md bg-white/95 hover:bg-white border border-slate-200 text-[11px] font-semibold text-slate-700 shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="mb-1.5 px-3 py-1 rounded-md bg-[#323232]/95 hover:bg-[#3D3D3D] border border-[#4A4A4A] text-xs font-semibold text-[#F5F3EE] shadow-md flex items-center gap-1.5 cursor-pointer transition-colors"
               >
-                {dockExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+                {dockExpanded ? <ChevronDown className="w-3.5 h-3.5 text-[#FFDB00]" /> : <ChevronUp className="w-3.5 h-3.5 text-[#FFDB00]" />}
                 <span>
                   {dockExpanded
                     ? lang === 'id' ? 'Sembunyikan Kontrol (H)' : 'Hide Controls (H)'
@@ -520,11 +555,11 @@ export default function App() {
               </button>
 
               {dockExpanded && (
-                <div className="bg-white/95 border border-slate-200 rounded-xl shadow-lg px-3.5 py-2.5 flex flex-col gap-2 w-full">
+                <div className="bg-[#323232]/96 border border-[#4A4A4A] rounded-xl shadow-2xl px-3.5 py-2.5 flex flex-col gap-2 w-full">
                   {/* Subsystem Layer Filter Bar */}
                   <div className="flex items-center gap-1.5 overflow-x-auto elban-scroll">
-                    <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1 mr-1 whitespace-nowrap shrink-0">
-                      <Layers className="w-3.5 h-3.5 text-sky-600" />
+                    <span className="text-xs font-semibold text-[#D6D3CB] flex items-center gap-1 mr-1 whitespace-nowrap shrink-0">
+                      <Layers className="w-3.5 h-3.5 text-[#FFDB00]" />
                       <span>{lang === 'id' ? 'Lapisan 3D:' : '3D Layer:'}</span>
                     </span>
                     <button
@@ -532,8 +567,8 @@ export default function App() {
                       onClick={() => setActiveLayerFilter('ALL')}
                       className={`px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
                         activeLayerFilter === 'ALL'
-                          ? 'bg-[#0B192C] text-white'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          ? 'bg-[#FFDB00] text-[#242424] font-bold'
+                          : 'bg-[#262626] text-[#E6E3DC] hover:bg-[#3D3D3D]'
                       }`}
                     >
                       {lang === 'id' ? 'Semua' : 'All'}
@@ -547,8 +582,8 @@ export default function App() {
                           onClick={() => setActiveLayerFilter(layer)}
                           className={`px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 cursor-pointer transition-colors ${
                             active
-                              ? 'bg-sky-600 text-white'
-                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                              ? 'bg-[#FFDB00] text-[#242424] font-bold'
+                              : 'bg-[#262626] text-[#E6E3DC] hover:bg-[#3D3D3D]'
                           }`}
                         >
                           {lang === 'id' ? SUBSYSTEM_LAYER_LABELS[layer].id : SUBSYSTEM_LAYER_LABELS[layer].en}
@@ -558,7 +593,7 @@ export default function App() {
                   </div>
 
                   {/* First-Person Navigation Hint */}
-                  <div className="text-[11px] text-slate-500 text-center border-t border-slate-100 pt-1.5 truncate">
+                  <div className="text-xs text-[#C4C1B9] text-center border-t border-[#454545] pt-1.5 truncate">
                     {lang === 'id'
                       ? 'Geser untuk menoleh · W A S D atau scroll untuk jalan · Klik lantai untuk pindah · Klik peralatan untuk bedah 3D'
                       : 'Drag to look around · W A S D or scroll to walk · Click floor to move · Click equipment for 3D dissection'}
@@ -569,26 +604,16 @@ export default function App() {
           )}
 
           {/* Bottom-Left Collapsible PAS Zone Audio Matrix Controller */}
-          {!introPlaying && !inspectedTarget && !tocModalOpen && (
+          {!introPlaying && !inspectedTarget && !tocModalOpen && !serverRackModalOpen && (
             <PasControllerPanel
               lang={lang}
               currentZoneId={currentZoneId}
               onTeleportZone={handleSelectZone}
               onBroadcastStateChange={handlePasBroadcastStateChange}
-              onSimulationCompleted={() => handleSimulationCompleted('sys-fids-pas')}
+              onSimulationCompleted={() => handleSimulationCompleted('sys-pas')}
             />
           )}
 
-          {/* Bottom-Right Digital ElBan Logbook HUD */}
-          {!introPlaying && !inspectedTarget && !tocModalOpen && (
-            <LogbookTrackerHUD
-              lang={lang}
-              loggedComponentIds={progress.loggedComponentIds}
-              totalXp={progress.totalXp}
-              recentLogFlash={recentLogFlash}
-              onOpenToc={handleOpenTocLogbook}
-            />
-          )}
         </>
       )}
 
@@ -616,6 +641,20 @@ export default function App() {
           onLogComponent={handleLogComponent}
           onSimulationCompleted={handleSimulationCompleted}
           onClose={() => setInspectedTarget(null)}
+        />
+      )}
+
+      {/* ==================== 42U SERVER RACK DIGITAL TWIN MODAL ==================== */}
+      {serverRackModalOpen && (
+        <ServerRackDigitalTwinModal
+          lang={lang}
+          isNightMode={timeOfDay === 'night'}
+          loggedComponentIds={progress.loggedComponentIds}
+          onLogComponent={handleLogComponent}
+          onOpenLegacyEquipment={(systemId, componentId) =>
+            setInspectedTarget({ systemId, componentId })
+          }
+          onClose={() => setServerRackModalOpen(false)}
         />
       )}
 

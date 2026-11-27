@@ -289,7 +289,7 @@ export const QUIZ_BANK: QuizQuestion[] = [
   },
   {
     id: 'q-pas-chain',
-    systemId: 'sys-fids-pas',
+    systemId: 'sys-pas',
     relatedComponentId: 'comp-pas-aas',
     question_id:
       'Urutan alur sinyal yang tepat saat pengumuman boarding otomatis (AAS) diputar menuju penumpang di ruang tunggu Concourse adalah:',

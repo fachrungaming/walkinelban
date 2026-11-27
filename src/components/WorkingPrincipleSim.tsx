@@ -26,16 +26,31 @@ import {
   triggerPasBroadcast,
 } from '../utils/audioSynth';
 
+export type PasInspectorZoneId = 'indoor' | 'concourse' | 'outdoor' | 'all';
+
+export interface PasInspectorBridge {
+  zone: PasInspectorZoneId;
+  active: boolean;
+  emergency: boolean;
+  activeSpeakers: Array<'column' | 'ceiling' | 'horn'>;
+  fromPaging: boolean;
+  onSelectZone: (zone: PasInspectorZoneId) => void;
+  onTogglePtt: (emergency?: boolean) => void;
+  onTestSpeaker: (speaker: 'column' | 'ceiling' | 'horn') => void;
+}
+
 interface WorkingPrincipleSimProps {
   simulationType: SimulationType;
   lang: Language;
   onSimulationRun: () => void;
+  pasBridge?: PasInspectorBridge;
 }
 
 export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
   simulationType,
   lang,
   onSimulationRun,
+  pasBridge,
 }) => {
   // 1. X-Ray State
   const [xrayMaterial, setXrayMaterial] = useState<'organic' | 'mixed' | 'inorganic'>('organic');
@@ -54,8 +69,9 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
   const [accessStatus, setAccessStatus] = useState<'idle' | 'granted' | 'denied'>('idle');
   const [fireAlarmActive, setFireAlarmActive] = useState(false);
 
-  // 5. FIDS & PAS State
+  // 5. FIDS, BIDS & PAS State
   const [flightStatus, setFlightStatus] = useState<'ON TIME' | 'BOARDING' | 'FINAL CALL'>('BOARDING');
+  const [bidsStatus, setBidsStatus] = useState<'FIRST BAG' | 'DELIVERING' | 'LAST BAG'>('DELIVERING');
   const [pasTargetZone, setPasTargetZone] = useState<'concourse' | 'lobby' | 'baggage' | 'all'>('concourse');
   const [aasPlaying, setAasPlaying] = useState(false);
   const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString('en-GB'));
@@ -98,7 +114,7 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
     return (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-xs font-semibold text-slate-700">
+          <div className="text-xs font-semibold text-[#D6D3CB]">
             {lang === 'id' ? 'Uji Pemindaian Dual-Energy (160 kV)' : 'Dual-Energy Scan Test (160 kV)'}
           </div>
           <button
@@ -113,7 +129,7 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
             className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
               xrayEstop
                 ? 'bg-red-600 text-white'
-                : 'bg-slate-200 text-slate-800 hover:bg-red-100 hover:text-red-800'
+                : 'bg-[#262626] text-[#F5F3EE] border border-[#4A4A4A] hover:bg-red-950/60 hover:text-red-300 hover:border-red-700/60'
             }`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />
@@ -122,14 +138,14 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
         </div>
 
         {/* Simulated Operator Monitor */}
-        <div className="rounded-lg border border-slate-300 bg-slate-50 overflow-hidden">
-          <div className="px-3 py-1.5 bg-slate-900 text-white flex items-center justify-between text-[11px] font-mono-tech">
+        <div className="rounded-lg border border-[#4A4A4A] bg-[#242424] overflow-hidden">
+          <div className="px-3 py-1.5 bg-[#1D1D1D] text-[#FFDB00] flex items-center justify-between text-[11px] font-mono-tech border-b border-[#454545]">
             <span>{xrayEstop ? 'INTERLOCK CUTOUT · 0 kV' : xrayScanning ? 'PHOTOCELL TRIGGERED · X-RAY ON' : 'STANDBY · LIGHT BARRIER READY'}</span>
             <span>{xrayEstop ? 'OFF' : '160 kV'}</span>
           </div>
-          <div className="relative h-28 flex items-center justify-center bg-white px-4">
+          <div className="relative h-28 flex items-center justify-center bg-[#2B2B2B] px-4">
             {xrayEstop ? (
-              <div className="text-center text-red-700 text-xs font-semibold flex items-center gap-2">
+              <div className="text-center text-red-400 text-xs font-semibold flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4" />
                 <span>
                   {lang === 'id'
@@ -140,20 +156,20 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
             ) : (
               <svg viewBox="0 0 320 90" className="w-full h-24">
                 {/* Luggage outline */}
-                <rect x="35" y="14" width="250" height="62" rx="8" fill="#f8fafc" stroke="#64748b" strokeWidth="2" />
+                <rect x="35" y="14" width="250" height="62" rx="8" fill="#1F1F1F" stroke="#7A776F" strokeWidth="2" />
                 {/* Material signature */}
-                <rect x="55" y="24" width="76" height="42" rx="4" fill={colorMap.fill} opacity="0.82" />
-                <circle cx="176" cy="45" r="21" fill={colorMap.fill} opacity="0.65" />
-                <path d="M222 28 L266 28 L266 60 L222 60 Z" fill={colorMap.fill} opacity="0.92" />
+                <rect x="55" y="24" width="76" height="42" rx="4" fill={colorMap.fill} opacity="0.86" />
+                <circle cx="176" cy="45" r="21" fill={colorMap.fill} opacity="0.72" />
+                <path d="M222 28 L266 28 L266 60 L222 60 Z" fill={colorMap.fill} opacity="0.95" />
                 {xrayScanning && (
-                  <line x1="160" y1="6" x2="160" y2="84" stroke="#0284c7" strokeWidth="3" strokeDasharray="4 2" />
+                  <line x1="160" y1="6" x2="160" y2="84" stroke="#FFDB00" strokeWidth="3" strokeDasharray="4 2" />
                 )}
               </svg>
             )}
           </div>
-          <div className="px-3 py-2 bg-slate-100 border-t border-slate-200 text-xs text-slate-700">
-            <span className="font-semibold text-slate-900">{lang === 'id' ? colorMap.label_id : colorMap.label_en}</span>
-            <span className="text-slate-400"> · </span>
+          <div className="px-3 py-2 bg-[#262626] border-t border-[#454545] text-xs text-[#D6D3CB]">
+            <span className="font-semibold text-[#F5F3EE]">{lang === 'id' ? colorMap.label_id : colorMap.label_en}</span>
+            <span className="text-[#9A978F]"> · </span>
             <span>{lang === 'id' ? colorMap.desc_id : colorMap.desc_en}</span>
           </div>
         </div>
@@ -165,8 +181,8 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
             onClick={() => triggerScan('organic')}
             className={`py-2 px-2 rounded-lg text-xs font-semibold border cursor-pointer transition-colors ${
               xrayMaterial === 'organic' && !xrayEstop
-                ? 'bg-orange-500 text-white border-orange-600'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-orange-50'
+                ? 'bg-orange-500 text-white border-orange-400'
+                : 'bg-[#262626] text-[#D6D3CB] border-[#4A4A4A] hover:bg-[#3D3D3D]'
             }`}
           >
             {lang === 'id' ? 'Organik (Oranye)' : 'Organic (Orange)'}
@@ -176,8 +192,8 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
             onClick={() => triggerScan('mixed')}
             className={`py-2 px-2 rounded-lg text-xs font-semibold border cursor-pointer transition-colors ${
               xrayMaterial === 'mixed' && !xrayEstop
-                ? 'bg-emerald-600 text-white border-emerald-700'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-emerald-50'
+                ? 'bg-emerald-600 text-white border-emerald-500'
+                : 'bg-[#262626] text-[#D6D3CB] border-[#4A4A4A] hover:bg-[#3D3D3D]'
             }`}
           >
             {lang === 'id' ? 'Campuran (Hijau)' : 'Mixed (Green)'}
@@ -187,8 +203,8 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
             onClick={() => triggerScan('inorganic')}
             className={`py-2 px-2 rounded-lg text-xs font-semibold border cursor-pointer transition-colors ${
               xrayMaterial === 'inorganic' && !xrayEstop
-                ? 'bg-blue-700 text-white border-blue-800'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-blue-50'
+                ? 'bg-blue-600 text-white border-blue-500'
+                : 'bg-[#262626] text-[#D6D3CB] border-[#4A4A4A] hover:bg-[#3D3D3D]'
             }`}
           >
             {lang === 'id' ? 'Logam (Biru)' : 'Metal (Blue)'}
@@ -210,8 +226,8 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span className="font-medium text-slate-700">{lang === 'id' ? 'Massa Logam' : 'Metal Mass'}</span>
-              <span className="font-mono-tech font-semibold text-slate-900">{metalSize} g</span>
+              <span className="font-medium text-[#D6D3CB]">{lang === 'id' ? 'Massa Logam' : 'Metal Mass'}</span>
+              <span className="font-mono-tech font-semibold text-[#FFDB00]">{metalSize} g</span>
             </div>
             <input
               type="range"
@@ -224,13 +240,13 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
                 onSimulationRun();
                 if (val >= 45 && metalSize < 45) playMetalAlarm();
               }}
-              className="w-full accent-amber-600 cursor-pointer"
+              className="w-full accent-[#FFDB00] cursor-pointer"
             />
           </div>
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span className="font-medium text-slate-700">{lang === 'id' ? 'Ketinggian Objek' : 'Object Height'}</span>
-              <span className="font-mono-tech font-semibold text-slate-900">{zoneNames[metalZone]}</span>
+              <span className="font-medium text-[#D6D3CB]">{lang === 'id' ? 'Ketinggian Objek' : 'Object Height'}</span>
+              <span className="font-mono-tech font-semibold text-[#FFDB00]">{zoneNames[metalZone]}</span>
             </div>
             <input
               type="range"
@@ -243,14 +259,14 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
                 onSimulationRun();
                 if (metalSize >= 45) playMetalAlarm();
               }}
-              className="w-full accent-sky-600 cursor-pointer"
+              className="w-full accent-[#FFDB00] cursor-pointer"
             />
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-950 p-3 flex items-center gap-4">
+        <div className="rounded-lg border border-[#4A4A4A] bg-[#242424] p-3 flex items-center gap-4">
           {/* WTMD Arch LED Zone Bar */}
-          <div className="flex flex-col-reverse gap-1 w-9 shrink-0 p-1.5 bg-slate-900 rounded border border-slate-700">
+          <div className="flex flex-col-reverse gap-1 w-9 shrink-0 p-1.5 bg-[#1C1C1C] rounded border border-[#454545]">
             {[0, 1, 2, 3, 4, 5].map((z) => {
               const active = alarmTriggered && z === metalZone;
               return (
@@ -267,7 +283,7 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
           {/* Eddy Current Flux Waveform */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between text-[11px] font-mono-tech mb-1">
-              <span className="text-slate-400">EDDY CURRENT FLUX SHIFT</span>
+              <span className="text-[#BDBAB2]">EDDY CURRENT FLUX SHIFT</span>
               <span className={alarmTriggered ? 'text-red-400 font-bold' : 'text-emerald-400'}>
                 {alarmTriggered ? 'ALARM · METAL DETECTED' : 'CLEAR · BELOW THRESHOLD'}
               </span>
@@ -276,13 +292,13 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
               <path
                 d={`M0 24 Q 30 ${24 - metalSize * 0.18}, 55 24 T 110 24 T 165 ${24 + metalSize * 0.18} T 220 24`}
                 fill="none"
-                stroke={alarmTriggered ? '#ef4444' : '#22c55e'}
+                stroke={alarmTriggered ? '#ef4444' : '#FFDB00'}
                 strokeWidth="2.5"
               />
-              <line x1="0" y1="24" x2="220" y2="24" stroke="#334155" strokeDasharray="3 3" />
+              <line x1="0" y1="24" x2="220" y2="24" stroke="#4A4A4A" strokeDasharray="3 3" />
             </svg>
             <div className="flex items-center justify-between mt-1">
-              <span className="text-[11px] text-slate-300">
+              <span className="text-[11px] text-[#D6D3CB]">
                 {alarmTriggered
                   ? `${zoneNames[metalZone]} — ${lang === 'id' ? 'Periksa lanjut dgn HHMD' : 'Secondary check with HHMD'}`
                   : lang === 'id'
@@ -295,7 +311,7 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
                   playMetalAlarm();
                   onSimulationRun();
                 }}
-                className="text-[11px] font-semibold text-amber-400 hover:underline cursor-pointer shrink-0 ml-2"
+                className="text-[11px] font-semibold text-[#FFDB00] hover:underline cursor-pointer shrink-0 ml-2"
               >
                 {lang === 'id' ? 'Tes Buzzer' : 'Test Buzzer'}
               </button>
@@ -317,7 +333,7 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
     return (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+          <div className="flex items-center gap-1 p-1 bg-[#262626] border border-[#454545] rounded-lg">
             {(['fixed', 'ptz', 'fisheye'] as const).map((v) => (
               <button
                 key={v}
@@ -327,7 +343,9 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
                   onSimulationRun();
                 }}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-md uppercase cursor-pointer transition-colors ${
-                  camView === v ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  camView === v
+                    ? 'bg-[#FFDB00] text-[#242424] font-bold'
+                    : 'text-[#D6D3CB] hover:text-white hover:bg-[#3D3D3D]'
                 }`}
               >
                 {v}
@@ -347,10 +365,10 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
               }
               onSimulationRun();
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${
               pidsIntrusion
                 ? 'bg-red-600 text-white'
-                : 'bg-teal-700 hover:bg-teal-800 text-white'
+                : 'bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424]'
             }`}
           >
             <ScanLine className="w-3.5 h-3.5" />
@@ -362,8 +380,8 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
           </button>
         </div>
 
-        <div className="rounded-lg bg-slate-950 border border-slate-800 p-3 text-white">
-          <div className="flex items-center justify-between text-[11px] font-mono-tech text-teal-300 mb-2">
+        <div className="rounded-lg bg-[#242424] border border-[#4A4A4A] p-3 text-[#F5F3EE]">
+          <div className="flex items-center justify-between text-[11px] font-mono-tech text-[#FFDB00] mb-2">
             <span className="flex items-center gap-1.5">
               <Camera className="w-3.5 h-3.5" />
               {viewLabel}
@@ -371,16 +389,16 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
             <span>{liveClock}</span>
           </div>
           <div className={`h-24 rounded border flex flex-col items-center justify-center px-3 text-center ${
-            pidsIntrusion ? 'border-red-500 bg-red-950/40' : 'border-slate-700 bg-slate-900'
+            pidsIntrusion ? 'border-red-500 bg-red-950/45' : 'border-[#454545] bg-[#1C1C1C]'
           }`}>
-            <div className="font-mono-tech text-xs font-semibold">
+            <div className="font-mono-tech text-xs font-semibold text-[#F5F3EE]">
               {pidsIntrusion
                 ? 'ALERT: RADAR SCANNING + FENCE VIBRATION DETECTED'
                 : camView === 'fisheye'
                   ? '360° PANORAMIC DE-WARPED COVERAGE · NOMINAL'
                   : 'OPTICAL FIBER LINK 10 Gbps -> NVR RAID RECORDING'}
             </div>
-            <div className="text-[11px] text-slate-300 mt-1.5 font-mono-tech">
+            <div className="text-[11px] text-[#BDBAB2] mt-1.5 font-mono-tech">
               {pidsIntrusion
                 ? 'PIDS Sensor -> Media Converter SFP -> Optical Fiber -> NVR & TOC Alarm'
                 : 'Camera CMOS -> SFP Transceiver -> Single-Mode Fiber -> NVR HDD'}
@@ -405,7 +423,7 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
               playAccessGranted();
               onSimulationRun();
             }}
-            className="py-2 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer"
+            className="py-2 px-2.5 rounded-lg bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424] text-xs font-bold cursor-pointer transition-colors"
           >
             {lang === 'id' ? 'Tempel RFID / Sidik Jari Valid' : 'Tap Valid RFID / Biometric'}
           </button>
@@ -416,7 +434,7 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
               playAccessDenied();
               onSimulationRun();
             }}
-            className="py-2 px-2.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-900 text-xs font-semibold cursor-pointer"
+            className="py-2 px-2.5 rounded-lg bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-[#F5F3EE] text-xs font-semibold cursor-pointer transition-colors"
           >
             {lang === 'id' ? 'Kartu Tidak Terdaftar' : 'Unregistered Card'}
           </button>
@@ -434,7 +452,7 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
           className={`w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
             fireAlarmActive
               ? 'bg-red-700 text-white'
-              : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+              : 'bg-red-950/40 text-red-300 border border-red-700/60 hover:bg-red-900/50'
           }`}
         >
           <BellRing className="w-3.5 h-3.5" />
@@ -445,10 +463,10 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
           </span>
         </button>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2 text-xs">
+        <div className="rounded-lg border border-[#454545] bg-[#262626] p-3 space-y-2 text-xs">
           <div className="flex items-center justify-between">
-            <span className="text-slate-600 font-medium">Magnetic Lock & Flap Barrier</span>
-            <span className={`font-mono-tech font-semibold flex items-center gap-1 ${unlocked ? 'text-emerald-700' : 'text-slate-800'}`}>
+            <span className="text-[#BDBAB2] font-medium">Magnetic Lock & Flap Barrier</span>
+            <span className={`font-mono-tech font-semibold flex items-center gap-1 ${unlocked ? 'text-[#FFDB00]' : 'text-[#F5F3EE]'}`}>
               {unlocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
               {fireAlarmActive
                 ? 'FAIL-SAFE UNLOCKED (MCFA)'
@@ -459,9 +477,9 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
                     : 'LOCKED (12V ENERGIZED)'}
             </span>
           </div>
-          <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-            <span className="text-slate-600 font-medium">Panel MCFA Fire Loop</span>
-            <span className={`font-mono-tech font-semibold flex items-center gap-1 ${fireAlarmActive ? 'text-red-600' : 'text-emerald-700'}`}>
+          <div className="flex items-center justify-between pt-2 border-t border-[#454545]">
+            <span className="text-[#BDBAB2] font-medium">Panel MCFA Fire Loop</span>
+            <span className={`font-mono-tech font-semibold flex items-center gap-1 ${fireAlarmActive ? 'text-red-400' : 'text-emerald-400'}`}>
               {fireAlarmActive ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
               {fireAlarmActive ? 'ZONE 02 ALARM · SIREN/STROBE ON' : 'NORMAL · 24V LOOP OK'}
             </span>
@@ -471,23 +489,187 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
     );
   }
 
-  // ==================== 5. FIDS, BIDS, MASTER CLOCK & PAS/AAS SIMULATOR ====================
-  if (simulationType === 'fids_pas_sync') {
+  // ==================== 5. FIDS & MASTER CLOCK SIMULATOR ====================
+  if (simulationType === 'fids_sync') {
+    return (
+      <div className="space-y-3">
+        {/* Mini FIDS + Master Clock Display */}
+        <div className="rounded-lg bg-[#242424] text-[#F5F3EE] p-3 border border-[#4A4A4A]">
+          <div className="flex items-center justify-between border-b border-[#454545] pb-1.5 mb-2">
+            <span className="font-mono-tech text-[11px] text-[#FFDB00]">MASTER CLOCK GPS/NTP SYNC</span>
+            <span className="font-mono-tech text-xs font-bold text-red-400">{liveClock}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs font-mono-tech">
+            <span className="text-[#FFDB00] font-bold">GA 402 · DPS</span>
+            <span className="text-[#D6D3CB]">GATE A04</span>
+            <span className={flightStatus === 'FINAL CALL' ? 'text-[#FFDB00] font-bold' : 'text-emerald-400 font-bold'}>
+              {flightStatus}
+            </span>
+          </div>
+        </div>
+
+        {/* FIDS Status Selector */}
+        <div>
+          <div className="flex items-center justify-between text-[11px] mb-1.5">
+            <span className="font-medium text-[#D6D3CB]">
+              {lang === 'id' ? 'Update Status Jadwal FIDS (via Switch LAN Internal):' : 'Update FIDS Flight Remark (via Internal LAN Switch):'}
+            </span>
+            <span className="font-mono-tech font-semibold text-[#FFDB00]">CAT6 GbE · NTP LOCK</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(['ON TIME', 'BOARDING', 'FINAL CALL'] as const).map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => {
+                  setFlightStatus(st);
+                  playTone(740, 0.08, 'sine', 0.05);
+                  onSimulationRun();
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors ${
+                  flightStatus === st
+                    ? 'bg-[#FFDB00] text-[#242424] border-[#FFDB00] font-bold'
+                    : 'bg-[#262626] text-[#D6D3CB] border-[#4A4A4A] hover:bg-[#3D3D3D]'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Internal Switch LAN Distribution Strip */}
+        <div className="grid grid-cols-4 gap-1.5 text-center font-mono-tech text-[10px]">
+          {['AODB / NTP', 'Switch 8P', 'Monitor FIDS', 'Master Clock'].map((node) => (
+            <div
+              key={node}
+              className="py-1.5 px-1 rounded border bg-[#3D3A28] text-[#FFDB00] border-[#FFDB00]/45 font-semibold"
+            >
+              {node}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== 6. BIDS — BAGGAGE INFORMATION DISPLAY SIMULATOR ====================
+  if (simulationType === 'bids_sync') {
+    return (
+      <div className="space-y-3">
+        {/* Mini BIDS Belt 7 Display */}
+        <div className="rounded-lg bg-[#242424] text-[#F5F3EE] p-3 border border-[#4A4A4A]">
+          <div className="flex items-center justify-between border-b border-[#454545] pb-1.5 mb-2">
+            <span className="font-mono-tech text-[11px] text-[#FFDB00] font-bold">INJOURNEY · BIDS BELT 7</span>
+            <span className="font-mono-tech text-xs font-bold text-[#D6D3CB]">{liveClock}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs font-mono-tech">
+            <span className="text-white font-bold">JT-897 · JAKARTA (CGK)</span>
+            <span
+              className={
+                bidsStatus === 'LAST BAG'
+                  ? 'text-[#FFDB00] font-bold'
+                  : bidsStatus === 'FIRST BAG'
+                    ? 'text-sky-300 font-bold'
+                    : 'text-emerald-400 font-bold'
+              }
+            >
+              {bidsStatus}
+            </span>
+          </div>
+        </div>
+
+        {/* Baggage Belt Status Selector */}
+        <div>
+          <div className="flex items-center justify-between text-[11px] mb-1.5">
+            <span className="font-medium text-[#D6D3CB]">
+              {lang === 'id' ? 'Simulasi Status Conveyor Bagasi (BHS → BIDS):' : 'Simulate Baggage Belt Status (BHS → BIDS):'}
+            </span>
+            <span className="font-mono-tech font-semibold text-[#FFDB00]">BELT 7 · RJ45 LAN</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(['FIRST BAG', 'DELIVERING', 'LAST BAG'] as const).map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => {
+                  setBidsStatus(st);
+                  playTone(660, 0.08, 'sine', 0.05);
+                  onSimulationRun();
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-colors ${
+                  bidsStatus === st
+                    ? 'bg-[#FFDB00] text-[#242424] border-[#FFDB00] font-bold'
+                    : 'bg-[#262626] text-[#D6D3CB] border-[#4A4A4A] hover:bg-[#3D3D3D]'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* BIDS Signal Flow Strip */}
+        <div className="grid grid-cols-4 gap-1.5 text-center font-mono-tech text-[10px]">
+          {['AODB / BHS', 'LAN RJ45', 'Media Player', 'BIDS Belt 7'].map((node) => (
+            <div
+              key={node}
+              className="py-1.5 px-1 rounded border bg-[#3D3A28] text-[#FFDB00] border-[#FFDB00]/45 font-semibold"
+            >
+              {node}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== 7. PAS & AAS — BOSCH PUBLIC ADDRESS SIMULATOR ====================
+  if (simulationType === 'pas_broadcast') {
     const zoneOptions: Array<{
-      id: 'concourse' | 'lobby' | 'baggage' | 'all';
+      id: PasInspectorZoneId;
       label_id: string;
       label_en: string;
+      speakersText: string;
       mode: PasBroadcastMode;
       load: string;
     }> = [
-      { id: 'concourse', label_id: 'Concourse (6 SPK)', label_en: 'Concourse (6 SPK)', mode: 'boarding', load: '64W' },
-      { id: 'lobby', label_id: 'Lobby (4 SPK)', label_en: 'Lobby (4 SPK)', mode: 'security', load: '52W' },
-      { id: 'baggage', label_id: 'Bagasi (3 SPK)', label_en: 'Baggage (3 SPK)', mode: 'baggage', load: '32W' },
-      { id: 'all', label_id: 'All-Zone (26 SPK)', label_en: 'All-Zone (26 SPK)', mode: 'emergency', load: '378W' },
+      { id: 'indoor', label_id: 'Ceiling (6W)', label_en: 'Ceiling (6W)', speakersText: 'Ceiling Speaker', mode: 'baggage', load: '6W' },
+      { id: 'concourse', label_id: 'Column + Ceiling', label_en: 'Column + Ceiling', speakersText: 'Column + Ceiling', mode: 'boarding', load: '26W' },
+      { id: 'outdoor', label_id: 'Horn IP65 (30W)', label_en: 'Horn IP65 (30W)', speakersText: 'Horn Outdoor', mode: 'security', load: '30W' },
+      { id: 'all', label_id: 'All-Zone (Darurat)', label_en: 'All-Zone (Emergency)', speakersText: 'Column + Ceiling + Horn', mode: 'emergency', load: '56W' },
     ];
-    const activeZoneSpec = zoneOptions.find((z) => z.id === pasTargetZone) ?? zoneOptions[0];
+
+    const currentZone: PasInspectorZoneId = pasBridge
+      ? pasBridge.zone
+      : pasTargetZone === 'lobby'
+        ? 'indoor'
+        : pasTargetZone === 'baggage'
+          ? 'outdoor'
+          : pasTargetZone === 'concourse'
+            ? 'concourse'
+            : 'all';
+    const isLive = pasBridge ? pasBridge.active : aasPlaying;
+    const isEmergency = pasBridge ? pasBridge.emergency : currentZone === 'all';
+    const activeZoneSpec = zoneOptions.find((z) => z.id === currentZone) ?? zoneOptions[1];
+
+    const handleSelectZone = (zoneId: PasInspectorZoneId) => {
+      if (pasBridge) {
+        pasBridge.onSelectZone(zoneId);
+        return;
+      }
+      setPasTargetZone(zoneId === 'indoor' ? 'lobby' : zoneId === 'outdoor' ? 'baggage' : zoneId === 'concourse' ? 'concourse' : 'all');
+      if (aasPlaying) {
+        stopPasBroadcast();
+        setAasPlaying(false);
+      }
+    };
 
     const toggleAasBroadcast = () => {
+      if (pasBridge) {
+        pasBridge.onTogglePtt(currentZone === 'all');
+        return;
+      }
       if (aasPlaying) {
         stopPasBroadcast();
         setAasPlaying(false);
@@ -506,49 +688,40 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
 
     return (
       <div className="space-y-3">
-        {/* Mini FIDS + Master Clock Display */}
-        <div className="rounded-lg bg-[#071324] text-white p-3 border border-slate-800">
-          <div className="flex items-center justify-between border-b border-slate-700 pb-1.5 mb-2">
-            <span className="font-mono-tech text-[11px] text-sky-400">MASTER CLOCK GPS/NTP SYNC</span>
-            <span className="font-mono-tech text-xs font-bold text-red-400">{liveClock}</span>
+        {/* BOSCH Call Station + OMNEO Rack Telemetry Header */}
+        <div className="rounded-lg bg-[#242424] text-[#F5F3EE] p-3 border border-[#4A4A4A]">
+          <div className="flex items-center justify-between border-b border-[#454545] pb-1.5 mb-2">
+            <span className="font-mono-tech text-[11px] text-[#FFDB00]">BOSCH PRAESENSA · OMNEO MATRIX</span>
+            <span className={`font-mono-tech text-xs font-bold ${isLive ? (isEmergency ? 'text-red-400' : 'text-emerald-400') : 'text-[#9A978F]'}`}>
+              {isLive ? (isEmergency ? 'EMERGENCY ON AIR' : 'PTT LIVE ON AIR') : 'STANDBY'}
+            </span>
           </div>
           <div className="flex items-center justify-between text-xs font-mono-tech">
-            <span className="text-amber-300 font-bold">GA 402 · DPS</span>
-            <span className="text-sky-300">GATE A04</span>
-            <span className={flightStatus === 'FINAL CALL' ? 'text-amber-400 font-bold' : 'text-emerald-400 font-bold'}>
-              {flightStatus}
-            </span>
+            <span className="text-[#D6D3CB]">{activeZoneSpec.speakersText}</span>
+            <span className="text-[#FFDB00] font-bold">100V LINE · {activeZoneSpec.load}</span>
           </div>
         </div>
 
         {/* Target PAS Speaker Zone Selector */}
         <div>
           <div className="flex items-center justify-between text-[11px] mb-1.5">
-            <span className="font-medium text-slate-600">
-              {lang === 'id' ? 'Zona Routing Speaker 100V:' : '100V Speaker Routing Zone:'}
+            <span className="font-medium text-[#D6D3CB]">
+              {lang === 'id' ? 'Keypad Ekspansi Zona Speaker 100V:' : '100V Speaker Zone Extension Keypad:'}
             </span>
-            <span className="font-mono-tech font-semibold text-indigo-700">
-              100V LINE · {activeZoneSpec.load}
-            </span>
+            <span className="font-mono-tech font-semibold text-[#FFDB00]">11× POWER AMP</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             {zoneOptions.map((z) => (
               <button
                 key={z.id}
                 type="button"
-                onClick={() => {
-                  setPasTargetZone(z.id);
-                  if (aasPlaying) {
-                    stopPasBroadcast();
-                    setAasPlaying(false);
-                  }
-                }}
+                onClick={() => handleSelectZone(z.id)}
                 className={`px-2 py-1.5 rounded-lg text-[11px] font-semibold border cursor-pointer transition-colors ${
-                  pasTargetZone === z.id
+                  currentZone === z.id
                     ? z.id === 'all'
-                      ? 'bg-red-600 text-white border-red-700'
-                      : 'bg-sky-600 text-white border-sky-700'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                      ? 'bg-red-600 text-white border-red-500'
+                      : 'bg-[#FFDB00] text-[#242424] border-[#FFDB00] font-bold'
+                    : 'bg-[#262626] text-[#D6D3CB] border-[#4A4A4A] hover:bg-[#3D3D3D]'
                 }`}
               >
                 {lang === 'id' ? z.label_id : z.label_en}
@@ -557,41 +730,28 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {(['ON TIME', 'BOARDING', 'FINAL CALL'] as const).map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => {
-                setFlightStatus(st);
-                playTone(740, 0.08, 'sine', 0.05);
-                onSimulationRun();
-              }}
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
-                flightStatus === st
-                  ? 'bg-indigo-600 text-white border-indigo-700'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] text-[#BDBAB2]">
+            {lang === 'id'
+              ? 'Klik PTT di model 3D Paging atau tombol ini untuk siaran & aliran data kabel.'
+              : 'Click the 3D Paging PTT button or here to broadcast & trace cable signal flow.'}
+          </span>
           <button
             type="button"
             onClick={toggleAasBroadcast}
-            className={`ml-auto px-3 py-1.5 rounded-lg text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
-              aasPlaying ? 'bg-red-600 hover:bg-red-700' : 'bg-[#0B192C] hover:bg-slate-800'
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors ${
+              isLive ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424]'
             }`}
           >
-            {aasPlaying ? (
+            {isLive ? (
               <>
                 <Square className="w-3.5 h-3.5 fill-current" />
-                <span>{lang === 'id' ? 'Stop PAS' : 'Stop PAS'}</span>
+                <span>{lang === 'id' ? 'Stop PTT' : 'Stop PTT'}</span>
               </>
             ) : (
               <>
-                <Volume2 className="w-3.5 h-3.5 text-sky-400" />
-                <span>{lang === 'id' ? 'Siarkan PAS/AAS' : 'Broadcast PAS/AAS'}</span>
+                <Volume2 className="w-3.5 h-3.5 text-[#242424]" />
+                <span>{lang === 'id' ? 'Tekan PTT / Siarkan' : 'Press PTT / Broadcast'}</span>
               </>
             )}
           </button>
@@ -599,18 +759,23 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
 
         {/* Signal Flow Activation Strip */}
         <div className="grid grid-cols-4 gap-1.5 text-center font-mono-tech text-[10px]">
-          {['AAS Player', 'Zone Matrix', '100V Amp', 'Zone Speakers'].map((node) => (
+          {[
+            { label: 'Paging PTT', active: isLive && (pasBridge ? pasBridge.fromPaging : true) },
+            { label: 'Kabel OMNEO', active: isLive && (pasBridge ? pasBridge.fromPaging : true) },
+            { label: 'Modul Rak 42U', active: isLive },
+            { label: 'Kabel 100V → SPK', active: isLive },
+          ].map((node) => (
             <div
-              key={node}
+              key={node.label}
               className={`py-1.5 px-1 rounded border transition-colors ${
-                aasPlaying
-                  ? activeZoneSpec.id === 'all'
-                    ? 'bg-red-600 text-white border-red-700 font-semibold'
-                    : 'bg-indigo-600 text-white border-indigo-700 font-semibold'
-                  : 'bg-slate-100 text-slate-600 border-slate-200'
+                node.active
+                  ? isEmergency
+                    ? 'bg-red-600 text-white border-red-500 font-semibold'
+                    : 'bg-[#FFDB00] text-[#242424] border-[#FFDB00] font-bold'
+                  : 'bg-[#262626] text-[#BDBAB2] border-[#454545]'
               }`}
             >
-              {node}
+              {node.label}
             </div>
           ))}
         </div>
@@ -622,12 +787,12 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+        <div className="flex items-center gap-1 p-1 bg-[#262626] border border-[#454545] rounded-lg">
           <button
             type="button"
             onClick={() => setRadioDevice('ht')}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-md cursor-pointer ${
-              radioDevice === 'ht' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+            className={`px-2.5 py-1 text-xs font-semibold rounded-md cursor-pointer transition-colors ${
+              radioDevice === 'ht' ? 'bg-[#FFDB00] text-[#242424] font-bold' : 'text-[#D6D3CB] hover:text-white'
             }`}
           >
             Handy Talky (5W)
@@ -635,8 +800,8 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
           <button
             type="button"
             onClick={() => setRadioDevice('rig')}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-md cursor-pointer ${
-              radioDevice === 'rig' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+            className={`px-2.5 py-1 text-xs font-semibold rounded-md cursor-pointer transition-colors ${
+              radioDevice === 'rig' ? 'bg-[#FFDB00] text-[#242424] font-bold' : 'text-[#D6D3CB] hover:text-white'
             }`}
           >
             Crash Car RIG (45W)
@@ -648,7 +813,7 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
           onClick={() =>
             setRadioFreq((f) => (f === 'UHF 452.400 MHz' ? 'VHF 156.800 MHz' : 'UHF 452.400 MHz'))
           }
-          className="font-mono-tech text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 cursor-pointer"
+          className="font-mono-tech text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-[#262626] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-[#FFDB00] cursor-pointer transition-colors"
         >
           {radioFreq}
         </button>
@@ -682,13 +847,13 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
             }, 1200);
           }
         }}
-        className={`w-full py-2.5 px-4 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+        className={`w-full py-2.5 px-4 rounded-lg text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
           pttActive
             ? 'bg-emerald-600 text-white'
-            : 'bg-[#0B192C] hover:bg-slate-800 text-white'
+            : 'bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424]'
         }`}
       >
-        <Radio className="w-4 h-4 text-emerald-400" />
+        <Radio className={`w-4 h-4 ${pttActive ? 'text-white' : 'text-[#242424]'}`} />
         <span>
           {pttActive
             ? `TX ACTIVE · ${radioDevice === 'ht' ? 'HT' : 'RIG'} -> IGCS BASE STATION`
@@ -696,8 +861,8 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
         </span>
       </button>
 
-      <div className="rounded-lg bg-slate-950 p-3 text-white">
-        <div className="flex justify-between font-mono-tech text-[11px] text-emerald-400 mb-1.5">
+      <div className="rounded-lg bg-[#242424] border border-[#4A4A4A] p-3 text-[#F5F3EE]">
+        <div className="flex justify-between font-mono-tech text-[11px] text-[#FFDB00] mb-1.5">
           <span>{pttActive ? 'MODULATING FM/DMR CARRIER' : 'RX SQUELCH STANDBY'}</span>
           <span>VSWR 1.1:1</span>
         </div>
@@ -707,8 +872,8 @@ export const WorkingPrincipleSim: React.FC<WorkingPrincipleSimProps> = ({
               key={step}
               className={`py-1.5 px-1 rounded border ${
                 pttActive
-                  ? 'bg-emerald-600/30 border-emerald-400 text-emerald-200 font-semibold'
-                  : 'bg-slate-900 border-slate-700 text-slate-400'
+                  ? 'bg-[#FFDB00] border-[#FFDB00] text-[#242424] font-bold'
+                  : 'bg-[#1C1C1C] border-[#454545] text-[#BDBAB2]'
               }`}
             >
               {step}

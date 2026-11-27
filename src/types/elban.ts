@@ -23,7 +23,9 @@ export type SimulationType =
   | 'eddy_current_zone'
   | 'pids_cctv_intrusion'
   | 'access_fire_trigger'
-  | 'fids_pas_sync'
+  | 'fids_sync'
+  | 'bids_sync'
+  | 'pas_broadcast'
   | 'rf_ptt_routing';
 
 export type InspectViewMode = 'normal' | 'xray' | 'exploded';
@@ -34,6 +36,8 @@ export type SystemId =
   | 'sys-cctv-pids'
   | 'sys-access-fire'
   | 'sys-fids-pas'
+  | 'sys-bids'
+  | 'sys-pas'
   | 'sys-radio-igcs';
 
 export type ZoneId =
@@ -164,6 +168,7 @@ export interface HoverTelemetryData {
   componentId?: string;
   zoneId?: ZoneId;
   isTocConsole?: boolean;
+  isServerRackTwin?: boolean;
   lightSwitchCircuitId?: LightCircuitId;
   screenX: number;
   screenY: number;

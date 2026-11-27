@@ -178,23 +178,23 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-950/75 flex items-center justify-center p-3 sm:p-6"
+      className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-3 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label="Ruang TOC Evaluation"
     >
-      <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+      <div className="w-full max-w-3xl max-h-[90vh] bg-[#323232] text-[#F5F3EE] rounded-2xl shadow-2xl border border-[#4A4A4A] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 bg-[#0B192C] text-white flex items-center justify-between gap-4 shrink-0">
+        <div className="px-6 py-4 bg-[#262626] border-b border-[#454545] text-[#F5F3EE] flex items-center justify-between gap-4 shrink-0">
           <div>
-            <div className="font-mono-tech text-xs text-sky-400">
+            <div className="font-mono-tech text-xs text-[#FFDB00]">
               {step === 1
-                ? 'TOC / Ringkasan Observasi'
+                ? 'TOC · Ringkasan Observasi'
                 : step === 2
-                  ? 'TOC / Evaluasi Singkat'
-                  : 'TOC / Laporan Kompetensi'}
+                  ? 'TOC · Evaluasi Singkat'
+                  : 'TOC · Laporan Kompetensi'}
             </div>
-            <h2 className="text-lg font-bold mt-0.5">
+            <h2 className="font-charm text-xl sm:text-2xl font-bold text-[#F5F3EE] mt-0.5">
               {step === 1
                 ? lang === 'id' ? 'Rekap Logbook Praktikum ElBan' : 'ElBan Practical Logbook Recap'
                 : step === 2
@@ -209,12 +209,12 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
               {[1, 2, 3].map((s) => (
                 <span
                   key={s}
-                  className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold ${
+                  className={`w-6 h-6 rounded-full flex items-center justify-center font-bold ${
                     step === s
-                      ? 'bg-sky-500 text-white'
+                      ? 'bg-[#FFDB00] text-[#242424]'
                       : step > s
                         ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-700 text-slate-400'
+                        : 'bg-[#3D3D3D] text-[#BDBAB2]'
                   }`}
                 >
                   {s}
@@ -225,7 +225,7 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Close TOC modal"
-              className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center cursor-pointer"
+              className="w-9 h-9 rounded-lg bg-[#323232] hover:bg-[#3D3D3D] border border-[#4A4A4A] text-[#FFDB00] flex items-center justify-center cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -238,27 +238,27 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
           {step === 1 && (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-xs font-medium text-slate-500">
+                <div className="p-4 rounded-xl bg-[#262626] border border-[#454545]">
+                  <div className="text-xs font-medium text-[#BDBAB2]">
                     {lang === 'id' ? 'Komponen Tercatat' : 'Logged Components'}
                   </div>
-                  <div className="font-mono-tech text-2xl font-bold text-slate-900 mt-1">
+                  <div className="font-mono-tech text-2xl font-bold text-[#F5F3EE] mt-1">
                     {loggedComponentIds.length} / {ELECTRONIC_COMPONENTS.length}
                   </div>
                 </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-xs font-medium text-slate-500">
+                <div className="p-4 rounded-xl bg-[#262626] border border-[#454545]">
+                  <div className="text-xs font-medium text-[#BDBAB2]">
                     {lang === 'id' ? 'Ketuntasan Kurikulum' : 'Curriculum Mastery'}
                   </div>
-                  <div className="font-mono-tech text-2xl font-bold text-sky-700 mt-1">
+                  <div className="font-mono-tech text-2xl font-bold text-[#FFDB00] mt-1">
                     {Math.round((loggedComponentIds.length / ELECTRONIC_COMPONENTS.length) * 100)}%
                   </div>
                 </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-xs font-medium text-slate-500">
+                <div className="p-4 rounded-xl bg-[#262626] border border-[#454545]">
+                  <div className="text-xs font-medium text-[#BDBAB2]">
                     {lang === 'id' ? 'Total Poin XP' : 'Total XP Earned'}
                   </div>
-                  <div className="font-mono-tech text-2xl font-bold text-slate-900 mt-1">
+                  <div className="font-mono-tech text-2xl font-bold text-[#F5F3EE] mt-1">
                     {totalXp} XP
                   </div>
                 </div>
@@ -266,7 +266,7 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
 
               {/* 6 Systems Progress Breakdown */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                <h3 className="text-xs font-bold text-[#FFDB00] mb-3">
                   {lang === 'id' ? 'Ketuntasan per 6 Sistem Utama ElBan' : 'Completion by 6 Core ElBan Systems'}
                 </h3>
                 <div className="space-y-2.5">
@@ -277,17 +277,17 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                     return (
                       <div key={sys.id} className="space-y-1">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-slate-800">
+                          <span className="font-semibold text-[#F5F3EE]">
                             {lang === 'id' ? sys.name_id : sys.name_en}
                           </span>
-                          <span className="font-mono-tech text-slate-600">
+                          <span className="font-mono-tech text-[#D6D3CB]">
                             {done}/{comps.length} ({pct}%)
                           </span>
                         </div>
-                        <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-2 rounded-full bg-[#242424] overflow-hidden">
                           <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: sys.accentColor }}
+                            className="h-full rounded-full transition-all bg-[#FFDB00]"
+                            style={{ width: `${pct}%` }}
                           />
                         </div>
                       </div>
@@ -299,22 +299,22 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
               {/* Logged Components List */}
               {loggedComponents.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  <h3 className="text-xs font-bold text-[#FFDB00] mb-2">
                     {lang === 'id' ? 'Sudah Dicatat di Logbook' : 'Recorded in Logbook'} ({loggedComponents.length})
                   </h3>
-                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="divide-y divide-[#454545] border border-[#454545] rounded-xl overflow-hidden">
                     {loggedComponents.map((comp) => (
-                      <div key={comp.id} className="px-4 py-2.5 bg-white flex items-center justify-between gap-3">
+                      <div key={comp.id} className="px-4 py-2.5 bg-[#262626] flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-xs font-semibold text-slate-900 truncate">
-                            <span className="font-mono-tech text-emerald-700 mr-2">{comp.code}</span>
+                          <div className="text-sm font-semibold text-[#F5F3EE] truncate">
+                            <span className="font-mono-tech text-[#FFDB00] mr-2">{comp.code}</span>
                             {lang === 'id' ? comp.name_id : comp.name_en}
                           </div>
-                          <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                          <div className="text-xs text-[#BDBAB2] truncate mt-0.5">
                             {lang === 'id' ? comp.summary_id : comp.summary_en}
                           </div>
                         </div>
-                        <span className="font-mono-tech text-xs font-semibold text-emerald-700 shrink-0">
+                        <span className="font-mono-tech text-xs font-semibold text-[#FFDB00] shrink-0">
                           +{comp.xpReward} XP
                         </span>
                       </div>
@@ -326,7 +326,7 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
               {/* Unvisited Components Quick Jump */}
               {unvisitedComponents.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  <h3 className="text-xs font-bold text-[#FFDB00] mb-2">
                     {lang === 'id' ? 'Belum Dikunjungi (Tautan Cepat 3D)' : 'Not Yet Visited (Quick 3D Jump)'} ({unvisitedComponents.length})
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -335,15 +335,15 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                         key={comp.id}
                         type="button"
                         onClick={() => onJumpToComponentIn3D(comp)}
-                        className="text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-sky-300 hover:bg-sky-50 flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                        className="text-left px-3 py-2 rounded-lg bg-[#262626] border border-[#454545] hover:border-[#FFDB00]/60 hover:bg-[#383838] flex items-center justify-between gap-2 cursor-pointer transition-colors"
                       >
                         <div className="min-w-0">
-                          <div className="font-mono-tech text-[11px] text-slate-500">{comp.code}</div>
-                          <div className="text-xs font-semibold text-slate-800 truncate">
+                          <div className="font-mono-tech text-[11px] text-[#FFDB00]">{comp.code}</div>
+                          <div className="text-xs font-semibold text-[#F5F3EE] truncate">
                             {lang === 'id' ? comp.name_id : comp.name_en}
                           </div>
                         </div>
-                        <Compass className="w-4 h-4 text-sky-600 shrink-0" />
+                        <Compass className="w-4 h-4 text-[#FFDB00] shrink-0" />
                       </button>
                     ))}
                   </div>
@@ -355,13 +355,13 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
           {/* ==================== STEP 2: 5-QUESTION QUIZ ==================== */}
           {step === 2 && (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <div className="flex items-center gap-1 p-1 bg-white rounded-lg border border-slate-200">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-[#262626] border border-[#454545]">
+                <div className="flex items-center gap-1 p-1 bg-[#323232] rounded-lg border border-[#4A4A4A]">
                   <button
                     type="button"
                     onClick={() => setEvalMode('practice')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer ${
-                      evalMode === 'practice' ? 'bg-[#0B192C] text-white' : 'text-slate-600 hover:text-slate-900'
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                      evalMode === 'practice' ? 'bg-[#FFDB00] text-[#242424] font-bold' : 'text-[#D6D3CB] hover:text-white'
                     }`}
                   >
                     {lang === 'id' ? 'Latihan Mandiri (Pembahasan)' : 'Practice Mode (Feedback)'}
@@ -372,8 +372,8 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                       setEvalMode('exam');
                       setTimeLeftSec(180);
                     }}
-                    className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer ${
-                      evalMode === 'exam' ? 'bg-sky-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
+                      evalMode === 'exam' ? 'bg-[#FFDB00] text-[#242424] font-bold' : 'text-[#D6D3CB] hover:text-white'
                     }`}
                   >
                     {lang === 'id' ? 'Ujian Praktikum (Berbatas Waktu)' : 'Timed Exam Mode'}
@@ -381,7 +381,7 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                 </div>
 
                 {evalMode === 'exam' && (
-                  <div className="font-mono-tech text-sm font-bold text-red-600 flex items-center gap-1.5">
+                  <div className="font-mono-tech text-sm font-bold text-[#FFDB00] flex items-center gap-1.5">
                     <Clock className="w-4 h-4" />
                     <span>{formattedTimer}</span>
                   </div>
@@ -395,15 +395,15 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                   const relatedComp = COMPONENT_MAP[q.relatedComponentId];
 
                   return (
-                    <div key={q.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span className="font-mono-tech font-semibold text-sky-700">
+                    <div key={q.id} className="p-4 rounded-xl border border-[#454545] bg-[#262626] space-y-3">
+                      <div className="flex items-center justify-between text-xs text-[#BDBAB2]">
+                        <span className="font-mono-tech font-semibold text-[#FFDB00]">
                           {lang === 'id' ? `SOAL 0${idx + 1}` : `QUESTION 0${idx + 1}`}
                         </span>
                         <span>{relatedComp?.code}</span>
                       </div>
 
-                      <p className="text-sm font-semibold text-slate-900 leading-relaxed">
+                      <p className="text-sm sm:text-base font-semibold text-[#F5F3EE] leading-relaxed">
                         {lang === 'id' ? q.question_id : q.question_en}
                       </p>
 
@@ -419,15 +419,15 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                               }
                               className={`w-full text-left px-3.5 py-2.5 rounded-lg border text-xs sm:text-sm transition-colors cursor-pointer flex items-center gap-2.5 ${
                                 isSelected
-                                  ? 'bg-sky-50 border-sky-600 text-sky-950 font-semibold'
-                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                  ? 'bg-[#3D3A28] border-[#FFDB00] text-[#FFDB00] font-semibold'
+                                  : 'bg-[#323232] border-[#4A4A4A] text-[#E6E3DC] hover:bg-[#3D3D3D]'
                               }`}
                             >
                               <span
                                 className={`font-mono-tech text-xs w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
                                   isSelected
-                                    ? 'bg-sky-600 text-white border-sky-600'
-                                    : 'border-slate-300 text-slate-500'
+                                    ? 'bg-[#FFDB00] text-[#242424] border-[#FFDB00] font-bold'
+                                    : 'border-[#666666] text-[#BDBAB2]'
                                 }`}
                               >
                                 {String.fromCharCode(65 + optIdx)}
@@ -443,8 +443,8 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                         <div
                           className={`p-3 rounded-lg text-xs leading-relaxed ${
                             chosen === q.correctIndex
-                              ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
-                              : 'bg-amber-50 text-amber-900 border border-amber-200'
+                              ? 'bg-emerald-950/50 text-emerald-200 border border-emerald-500/40'
+                              : 'bg-[#3D3A28] text-[#FFDB00] border border-[#FFDB00]/45'
                           }`}
                         >
                           <span className="font-bold mr-1.5">
@@ -465,13 +465,13 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
           {/* ==================== STEP 3: COMPETENCY REPORT ==================== */}
           {step === 3 && attemptResult && (
             <>
-              <div className="p-6 rounded-xl bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="p-6 rounded-xl bg-[#242424] border border-[#FFDB00]/50 text-[#F5F3EE] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <div className="font-mono-tech text-xs text-sky-400">
+                  <div className="font-mono-tech text-xs text-[#FFDB00]">
                     {lang === 'id' ? 'KODE SESI PRAKTIKUM' : 'PRACTICAL SESSION CODE'} · {attemptResult.sessionCode}
                   </div>
-                  <div className="text-2xl font-bold mt-1 flex items-center gap-2.5">
-                    <Award className="w-6 h-6 text-amber-400" />
+                  <div className="font-charm text-2xl sm:text-3xl font-bold mt-1 flex items-center gap-2.5 text-white">
+                    <Award className="w-6 h-6 text-[#FFDB00]" />
                     <span>
                       {attemptResult.score >= 80
                         ? lang === 'id' ? 'Sangat Kompeten' : 'Highly Competent'
@@ -480,7 +480,7 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                           : lang === 'id' ? 'Perlu Pendalaman' : 'Needs Review'}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-300 mt-1">
+                  <div className="text-xs text-[#D6D3CB] mt-1">
                     {lang === 'id'
                       ? `Bonus evaluasi +${attemptResult.earnedXp} XP · Total XP sekarang ${totalXp} XP`
                       : `Assessment bonus +${attemptResult.earnedXp} XP · Current Total ${totalXp} XP`}
@@ -488,31 +488,31 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                 </div>
 
                 <div className="text-left sm:text-right">
-                  <div className="text-xs text-slate-400">{lang === 'id' ? 'Skor Akhir' : 'Final Score'}</div>
-                  <div className="font-mono-tech text-4xl font-bold text-sky-400">
+                  <div className="text-xs text-[#BDBAB2]">{lang === 'id' ? 'Skor Akhir' : 'Final Score'}</div>
+                  <div className="font-mono-tech text-4xl font-bold text-[#FFDB00]">
                     {attemptResult.score}
-                    <span className="text-lg text-slate-400">/100</span>
+                    <span className="text-lg text-[#BDBAB2]">/100</span>
                   </div>
                 </div>
               </div>
 
               {/* Summary Metrics */}
               <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-[11px] text-slate-500">{lang === 'id' ? 'Kode Sesi' : 'Session'}</div>
-                  <div className="font-mono-tech text-sm font-bold text-slate-900 mt-0.5">
+                <div className="p-3 rounded-xl bg-[#262626] border border-[#454545]">
+                  <div className="text-xs text-[#BDBAB2]">{lang === 'id' ? 'Kode Sesi' : 'Session'}</div>
+                  <div className="font-mono-tech text-sm font-bold text-[#F5F3EE] mt-0.5">
                     {attemptResult.sessionCode}
                   </div>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-[11px] text-slate-500">{lang === 'id' ? 'Komponen Dikuasai' : 'Components'}</div>
-                  <div className="font-mono-tech text-sm font-bold text-slate-900 mt-0.5">
+                <div className="p-3 rounded-xl bg-[#262626] border border-[#454545]">
+                  <div className="text-xs text-[#BDBAB2]">{lang === 'id' ? 'Komponen Dikuasai' : 'Components'}</div>
+                  <div className="font-mono-tech text-sm font-bold text-[#FFDB00] mt-0.5">
                     {loggedComponentIds.length}/{ELECTRONIC_COMPONENTS.length}
                   </div>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <div className="text-[11px] text-slate-500">{lang === 'id' ? 'Jawaban Benar' : 'Correct'}</div>
-                  <div className="font-mono-tech text-sm font-bold text-emerald-700 mt-0.5">
+                <div className="p-3 rounded-xl bg-[#262626] border border-[#454545]">
+                  <div className="text-xs text-[#BDBAB2]">{lang === 'id' ? 'Jawaban Benar' : 'Correct'}</div>
+                  <div className="font-mono-tech text-sm font-bold text-emerald-400 mt-0.5">
                     {attemptResult.answers.filter((a) => a.isCorrect).length}/{attemptResult.answers.length}
                   </div>
                 </div>
@@ -520,30 +520,30 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
 
               {/* Itemized Review */}
               <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                <h3 className="text-xs font-bold text-[#FFDB00]">
                   {lang === 'id' ? 'Rincian Pembahasan Jawaban' : 'Answer Breakdown & Explanations'}
                 </h3>
                 {questions.map((q, i) => {
                   const rec = attemptResult.answers[i];
                   const options = lang === 'id' ? q.options_id : q.options_en;
                   return (
-                    <div key={q.id} className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-1.5">
+                    <div key={q.id} className="p-3.5 rounded-xl border border-[#454545] bg-[#262626] space-y-1.5">
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs font-semibold text-slate-900">
+                        <span className="text-sm font-semibold text-[#F5F3EE]">
                           {i + 1}. {lang === 'id' ? q.question_id : q.question_en}
                         </span>
                         {rec.isCorrect ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                         ) : (
-                          <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          <XCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                         )}
                       </div>
-                      <div className="text-xs text-slate-600">
-                        <span className="font-semibold text-emerald-700">
+                      <div className="text-xs text-[#D6D3CB]">
+                        <span className="font-semibold text-[#FFDB00]">
                           {lang === 'id' ? 'Kunci: ' : 'Key: '}
                           {options[q.correctIndex]}
                         </span>
-                        <span className="text-slate-400"> · </span>
+                        <span className="text-[#8C8982]"> · </span>
                         <span>{lang === 'id' ? q.explanation_id : q.explanation_en}</span>
                       </div>
                     </div>
@@ -555,22 +555,22 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="px-6 py-4 border-t border-[#454545] bg-[#262626] flex flex-wrap items-center justify-between gap-3 shrink-0">
           {step === 1 && (
             <>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-sm font-semibold cursor-pointer"
+                className="px-4 py-2.5 rounded-lg bg-[#323232] border border-[#4A4A4A] hover:bg-[#3D3D3D] text-[#F5F3EE] text-sm font-semibold cursor-pointer"
               >
                 {lang === 'id' ? 'Tutup' : 'Close'}
               </button>
               <button
                 type="button"
                 onClick={startQuiz}
-                className="px-5 py-2.5 rounded-lg bg-[#0B192C] hover:bg-[#162f52] text-white text-sm font-semibold flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 rounded-lg bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424] text-sm font-bold flex items-center gap-2 cursor-pointer"
               >
-                <ClipboardCheck className="w-4 h-4 text-sky-400" />
+                <ClipboardCheck className="w-4 h-4 text-[#242424]" />
                 <span>{lang === 'id' ? 'Lanjut ke Uji Pemahaman' : 'Proceed to Assessment'}</span>
               </button>
             </>
@@ -581,7 +581,7 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="px-4 py-2.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-sm font-semibold cursor-pointer"
+                className="px-4 py-2.5 rounded-lg bg-[#323232] border border-[#4A4A4A] hover:bg-[#3D3D3D] text-[#F5F3EE] text-sm font-semibold cursor-pointer"
               >
                 {lang === 'id' ? 'Kembali' : 'Back'}
               </button>
@@ -589,7 +589,7 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                 type="button"
                 onClick={handleSubmitAssessment}
                 disabled={Object.keys(selectedAnswers).length < questions.length}
-                className="px-5 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold cursor-pointer"
+                className="px-5 py-2.5 rounded-lg bg-[#FFDB00] hover:bg-[#E6C500] disabled:bg-[#4A4A4A] disabled:text-[#8C8982] disabled:cursor-not-allowed text-[#242424] text-sm font-bold cursor-pointer"
               >
                 {lang === 'id'
                   ? `Kirim Jawaban & Hitung Nilai (${Object.keys(selectedAnswers).length}/${questions.length})`
@@ -604,9 +604,9 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                 <button
                   type="button"
                   onClick={handleDownloadReport}
-                  className="px-4 py-2.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-xs sm:text-sm font-semibold flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2.5 rounded-lg bg-[#323232] border border-[#4A4A4A] hover:bg-[#3D3D3D] text-[#F5F3EE] text-xs sm:text-sm font-semibold flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-4 h-4 text-[#FFDB00]" />
                   <span>{lang === 'id' ? 'Unduh Ringkasan' : 'Download Report'}</span>
                 </button>
                 <button
@@ -615,7 +615,7 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
                     onResetProgress();
                     onClose();
                   }}
-                  className="px-3.5 py-2.5 rounded-lg bg-white border border-slate-200 hover:bg-red-50 hover:text-red-700 text-slate-600 text-xs sm:text-sm font-semibold flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2.5 rounded-lg bg-[#323232] border border-[#4A4A4A] hover:bg-red-950/60 hover:text-red-300 text-[#D6D3CB] text-xs sm:text-sm font-semibold flex items-center gap-1.5 cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>{lang === 'id' ? 'Reset Progres' : 'Reset'}</span>
@@ -624,7 +624,7 @@ export const TOCEvaluationModal: React.FC<TOCEvaluationModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2.5 rounded-lg bg-[#0B192C] hover:bg-[#162f52] text-white text-sm font-semibold cursor-pointer"
+                className="px-5 py-2.5 rounded-lg bg-[#FFDB00] hover:bg-[#E6C500] text-[#242424] text-sm font-bold cursor-pointer"
               >
                 {lang === 'id' ? 'Ulangi Eksplorasi' : 'Continue Exploring'}
               </button>

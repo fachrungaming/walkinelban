@@ -2,8 +2,15 @@
 
 @layer base {
   :root {
-    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: 'Charm', cursive;
+    --font-seasons: 'The Seasons', 'Cormorant Garamond', Georgia, serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+    --color-charcoal: #323232;
+    --color-charcoal-deep: #242424;
+    --color-charcoal-elevated: #3D3D3D;
+    --color-gold: #FFDB00;
+    --color-gold-hover: #E6C500;
+    --color-ivory: #F5F3EE;
   }
 
   html,
@@ -13,13 +20,42 @@
     height: 100%;
     margin: 0;
     padding: 0;
-    font-family: var(--font-sans);
+    font-family: var(--font-seasons);
+    background-color: var(--color-charcoal);
+    color: var(--color-ivory);
+    letter-spacing: 0.012em;
+    -webkit-font-smoothing: antialiased;
     overflow: hidden;
+  }
+
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+  }
+
+  .font-charm {
+    font-family: var(--font-display);
+    letter-spacing: 0.015em;
+  }
+
+  .font-seasons {
+    font-family: var(--font-seasons);
+    letter-spacing: 0.012em;
   }
 
   .font-mono-tech {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #FFDB00;
+    outline-offset: 2px;
   }
 }
 
@@ -27,18 +63,18 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Subtle custom scrollbars for panels & directory */
+/* Modern Styles custom scrollbars (#323232 + #FFDB00) */
 .elban-scroll::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 .elban-scroll::-webkit-scrollbar-track {
-  background: transparent;
+  background: #282828;
 }
 .elban-scroll::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.18);
+  background: rgba(255, 219, 0, 0.34);
   border-radius: 9999px;
 }
 .elban-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 23, 42, 0.34);
+  background: rgba(255, 219, 0, 0.65);
 }

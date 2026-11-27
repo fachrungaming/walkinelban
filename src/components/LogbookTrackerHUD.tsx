@@ -33,7 +33,7 @@ export const LogbookTrackerHUD: React.FC<LogbookTrackerHUDProps> = ({
   return (
     <div className="fixed bottom-5 right-5 z-20 flex flex-col items-end gap-2 pointer-events-none">
       {recentLogFlash && (
-        <div className="bg-[#0B192C] text-white text-xs font-medium px-3.5 py-2 rounded-lg shadow-lg border border-sky-500/40 pointer-events-auto">
+        <div className="bg-[#323232] text-[#FFDB00] text-xs font-semibold px-3.5 py-2 rounded-lg shadow-xl border border-[#FFDB00]/50 pointer-events-auto">
           {recentLogFlash}
         </div>
       )}
@@ -43,24 +43,24 @@ export const LogbookTrackerHUD: React.FC<LogbookTrackerHUDProps> = ({
           type="button"
           onClick={() => setMinimized(false)}
           title={lang === 'id' ? 'Tampilkan Logbook ElBan' : 'Expand ElBan Logbook'}
-          className="pointer-events-auto bg-white/96 hover:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 shadow-lg flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer transition-colors"
+          className="pointer-events-auto bg-[#323232]/96 hover:bg-[#3D3D3D] border border-[#4A4A4A] rounded-xl px-3.5 py-2.5 shadow-xl flex items-center gap-2 text-xs font-semibold text-[#F5F3EE] cursor-pointer transition-colors"
         >
-          <ClipboardList className="w-4 h-4 text-sky-600 shrink-0" />
-          <span className="font-mono-tech font-bold text-slate-900">
+          <ClipboardList className="w-4 h-4 text-[#FFDB00] shrink-0" />
+          <span className="font-mono-tech font-bold text-[#F5F3EE]">
             {loggedComponentIds.length}/{totalCount}
           </span>
-          <span className="text-slate-400">·</span>
-          <span className="font-mono-tech text-[11px] font-semibold text-sky-700">{totalXp} XP</span>
-          <ChevronUp className="w-3.5 h-3.5 text-slate-500 ml-0.5" />
+          <span className="text-[#8C8982]">·</span>
+          <span className="font-mono-tech text-[11px] font-semibold text-[#FFDB00]">{totalXp} XP</span>
+          <ChevronUp className="w-3.5 h-3.5 text-[#BDBAB2] ml-0.5" />
         </button>
       ) : (
-        <div className="relative pointer-events-auto bg-white/95 hover:bg-white border border-slate-200 rounded-xl shadow-lg transition-transform duration-200 hover:-translate-y-0.5">
+        <div className="relative pointer-events-auto bg-[#323232]/96 hover:bg-[#383838] border border-[#4A4A4A] rounded-xl shadow-2xl transition-transform duration-200 hover:-translate-y-0.5">
           <button
             type="button"
             onClick={() => setMinimized(true)}
             title={lang === 'id' ? 'Perkecil Logbook' : 'Minimize Logbook'}
             aria-label={lang === 'id' ? 'Perkecil Logbook' : 'Minimize Logbook'}
-            className="absolute top-1.5 right-1.5 z-10 p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
+            className="absolute top-1.5 right-1.5 z-10 p-1 rounded-md text-[#BDBAB2] hover:text-[#FFDB00] hover:bg-[#262626] cursor-pointer transition-colors"
           >
             <Minus className="w-3.5 h-3.5" />
           </button>
@@ -87,7 +87,7 @@ export const LogbookTrackerHUD: React.FC<LogbookTrackerHUDProps> = ({
                         cy={center}
                         r={radius}
                         fill="none"
-                        stroke="#e2e8f0"
+                        stroke="#4A4A4A"
                         strokeWidth="5"
                         strokeDasharray={`${segArc} ${circumference - segArc}`}
                         strokeDashoffset={offset}
@@ -100,7 +100,7 @@ export const LogbookTrackerHUD: React.FC<LogbookTrackerHUDProps> = ({
                           cy={center}
                           r={radius}
                           fill="none"
-                          stroke={sys.accentColor}
+                          stroke="#FFDB00"
                           strokeWidth="5"
                           strokeDasharray={`${segArc * ratio} ${circumference - segArc * ratio}`}
                           strokeDashoffset={offset}
@@ -112,24 +112,24 @@ export const LogbookTrackerHUD: React.FC<LogbookTrackerHUDProps> = ({
                 })}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-mono-tech text-xs font-bold text-slate-900 leading-none">
+                <span className="font-mono-tech text-xs font-bold text-[#FFDB00] leading-none">
                   {loggedComponentIds.length}
                 </span>
-                <span className="font-mono-tech text-[10px] text-slate-400 leading-none mt-0.5">
+                <span className="font-mono-tech text-[10px] text-[#BDBAB2] leading-none mt-0.5">
                   /{totalCount}
                 </span>
               </div>
             </div>
 
             <div className="pr-1">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                <ClipboardList className="w-3.5 h-3.5 text-sky-600" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-[#D6D3CB]">
+                <ClipboardList className="w-3.5 h-3.5 text-[#FFDB00]" />
                 <span>{lang === 'id' ? 'Logbook ElBan' : 'ElBan Logbook'}</span>
               </div>
-              <div className="font-mono-tech text-sm font-bold text-slate-900 mt-0.5">
+              <div className="font-mono-tech text-sm font-bold text-[#F5F3EE] mt-0.5">
                 {totalXp} XP
               </div>
-              <div className="text-[11px] font-medium text-sky-700 group-hover:underline mt-0.5">
+              <div className="text-xs font-semibold text-[#FFDB00] group-hover:underline mt-0.5">
                 {lang === 'id' ? 'Uji di Ruang TOC' : 'Evaluate at TOC'}
               </div>
             </div>

@@ -16,6 +16,8 @@ import {
   buildTocEvaluationDesk,
   buildWalkInEntranceGate,
   BuiltEquipmentUnit,
+  createBidsDisplayUnit,
+  createBoschPasRack,
   createCeilingSpeakerUnit,
   createColumnSpeakerUnit,
   createHikvisionFisheyeCamera,
@@ -26,7 +28,6 @@ import {
 } from './proceduralModels';
 import {
   createApronAsphaltTexture,
-  createBidsTexture,
   createCeilingSpeakerGrilleTexture,
   createColumnSpeakerGrilleTexture,
   createFacadeLouverTexture,
@@ -41,14 +42,17 @@ import {
   createZoneSignTexture,
 } from './proceduralTextures';
 import { PasBroadcastMode } from '../utils/audioSynth';
+import { Built42UNetworkRack, create42UNetworkRack } from './serverRack42U';
 import { createAfterDraw, detectSoftwareGl, disposeObject3D } from './webglUtils';
 
 export interface AirportSceneCallbacks {
   onZoneChange: (zoneId: ZoneId) => void;
   onIntroStateChange: (playing: boolean) => void;
+  onIntroZoneChange?: (zoneId: ZoneId) => void;
   onHoverTelemetry: (data: HoverTelemetryData | null) => void;
   onSelectSystem: (systemId: SystemId, componentId?: string) => void;
   onOpenTocModal: () => void;
+  onOpenServerRackTwin?: () => void;
   onToggleLightCircuit?: (circuitId: LightCircuitId) => void;
   onContextLost?: () => void;
 }
@@ -98,10 +102,23 @@ export class AirportSceneController {
   private transitionGoalPitch = 0;
   private transitionWithLook = false;
 
-  // Cinematic Intro spline
+  // Cinematic Intro spline (30-second real-time full tour of all 9 terminal zones)
   private introPlaying = true;
   private introProgress = 0;
-  private introDuration = 16; // seconds
+  private introDuration = 30; // seconds (real-time)
+  private introStartTimeMs: number | null = null;
+  private lastIntroZone: ZoneId | null = null;
+  private readonly introZoneSequence: ZoneId[] = [
+    'lobby',
+    'scp',
+    'baggage',
+    'comms',
+    'perimeter',
+    'server',
+    'concourse',
+    'restricted',
+    'toc',
+  ];
   private introPosCurve: THREE.CatmullRomCurve3;
   private introLookCurve: THREE.CatmullRomCurve3;
 
@@ -117,12 +134,14 @@ export class AirportSceneController {
   private activeZoneId: ZoneId = 'lobby';
   private activeLayerFilter: SubsystemLayer | 'ALL' = 'ALL';
   private lastClockTickSec = -1;
+  private bidsUpdater: ((d: Date) => void) | null = null;
 
   // Public Address System (PAS / AAS) distributed zone speaker registry
   private pasZoneSpeakers = new Map<ZoneId, PasSpeakerHandle[]>();
   private pasActiveZones = new Set<ZoneId>();
   private pasBroadcastMode: PasBroadcastMode | 'idle' = 'idle';
   private entranceGate: WalkInEntranceGateHandle | null = null;
+  private serverRoomRacks: Built42UNetworkRack[] = [];
 
   // Day/Night & Room Lighting Switchboard state
   private hemiLight!: THREE.HemisphereLight;
@@ -197,25 +216,33 @@ export class AirportSceneController {
     // Build Virtual Airport Terminal Architecture + Airside Apron + 6 ElBan Systems + TOC
     this.buildAirportEnvironment();
 
-    // Intro fly-through spline: Outdoor Exterior Facade -> through Walk-In ElBan Gate -> SCP -> Concourse -> Server Room -> Outdoor Gate Overview
+    // 30-second real-time Intro fly-through spline sweeping smoothly across all 9 terminal zones without clipping obstacles
     this.introPosCurve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, 2.55, 28.2),
-      new THREE.Vector3(0, 2.25, 19.6),
-      new THREE.Vector3(-4.5, 2.4, 11.5),
-      new THREE.Vector3(-5.2, 2.3, 4.2),
-      new THREE.Vector3(0.5, 2.8, 2.5),
-      new THREE.Vector3(9.5, 2.2, -1.8),
-      new THREE.Vector3(3.8, 2.2, 12.2),
-      new THREE.Vector3(0, 1.9, 26.8),
+      new THREE.Vector3(0, 2.55, 28.2),      // 1. Lobby & Gerbang Utama
+      new THREE.Vector3(0, 2.25, 19.4),      // Entering Walk-In ElBan Gate
+      new THREE.Vector3(-5.6, 2.4, 11.5),    // 2. Security Checkpoint (SCP)
+      new THREE.Vector3(-6.2, 2.45, -1.2),   // 6. Baggage Claim Hall
+      new THREE.Vector3(-4.5, 2.5, -8.8),    // 8. Pos Komunikasi & Crash Car
+      new THREE.Vector3(0.0, 2.55, -9.6),    // 3. Perimeter Airside (PIDS)
+      new THREE.Vector3(6.8, 2.4, -3.6),     // 7. Ruang Server & Rack ElBan
+      new THREE.Vector3(3.8, 2.55, 1.8),     // 5. Concourse & Boarding Gate
+      new THREE.Vector3(6.2, 2.4, 7.6),      // 4. Area Terbatas & Safety
+      new THREE.Vector3(6.8, 2.3, 13.6),     // 9. Ruang TOC (Evaluasi)
+      new THREE.Vector3(1.8, 2.2, 18.8),     // Smooth exit through main gate
+      new THREE.Vector3(0, 1.9, 26.8),       // Settle at Lobby overview
     ]);
     this.introLookCurve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(0, 3.2, 16.5),
-      new THREE.Vector3(0, 2.5, 9.5),
-      new THREE.Vector3(-10.5, 1.3, 6.0),
-      new THREE.Vector3(-8.5, 1.3, 4.5),
-      new THREE.Vector3(0, 2.4, -3.5),
-      new THREE.Vector3(14.2, 1.5, -7.2),
-      new THREE.Vector3(0, 2.4, 17.6),
+      new THREE.Vector3(0, 2.6, 10.6),
+      new THREE.Vector3(-12.5, 1.5, 5.5),
+      new THREE.Vector3(-12.8, 1.9, -7.5),
+      new THREE.Vector3(-16.0, 1.6, -14.2),
+      new THREE.Vector3(0.0, 2.1, -17.5),
+      new THREE.Vector3(14.5, 1.6, -7.5),
+      new THREE.Vector3(0.0, 2.1, -2.8),
+      new THREE.Vector3(11.8, 1.6, 5.5),
+      new THREE.Vector3(14.2, 1.6, 14.2),
+      new THREE.Vector3(0, 2.8, 16.8),
       new THREE.Vector3(0, 3.05, 16.8),
     ]);
 
@@ -554,8 +581,9 @@ export class AirportSceneController {
     this.interactiveRoots.push(videoGroup);
     this.collisionBoxes.push({ minX: -3.6, maxX: 3.6, minZ: 10.1, maxZ: 11.1 });
 
-    // 5. Place All 6 Hero ElBan Equipment Systems
+    // 5. Place Hero ElBan Equipment Systems (sys-bids is mounted overhead in buildBaggageClaimHall)
     for (const sys of EQUIPMENT_SYSTEMS) {
+      if (sys.id === 'sys-bids') continue;
       const built = buildEquipmentBySystem(sys.id, maxAniso);
       built.root.position.set(sys.worldPosition.x, sys.worldPosition.y, sys.worldPosition.z);
       // Orient units nicely toward central concourse/walkways
@@ -568,11 +596,13 @@ export class AirportSceneController {
       this.equipmentUnits.set(sys.id, built);
       this.interactiveRoots.push(built.root);
 
+      const halfX = sys.id === 'sys-fids-pas' ? 0.65 : sys.id === 'sys-pas' ? 1.55 : 1.5;
+      const halfZ = sys.id === 'sys-fids-pas' ? 0.45 : sys.id === 'sys-pas' ? 0.78 : 1.3;
       this.collisionBoxes.push({
-        minX: sys.worldPosition.x - 1.5,
-        maxX: sys.worldPosition.x + 1.5,
-        minZ: sys.worldPosition.z - 1.3,
-        maxZ: sys.worldPosition.z + 1.3,
+        minX: sys.worldPosition.x - halfX,
+        maxX: sys.worldPosition.x + halfX,
+        minZ: sys.worldPosition.z - halfZ,
+        maxZ: sys.worldPosition.z + halfZ,
       });
     }
 
@@ -601,7 +631,7 @@ export class AirportSceneController {
       { title: 'SECURITY CHECKPOINT (SCP)', sub: 'WTMD · HHMD · X-RAY', pos: [-12.5, 3.85, 5.5], rotY: 0.85 - Math.PI / 2, color: '#0284c7' },
       { title: 'AREA TERBATAS & SAFETY', sub: 'ACCESS CONTROL · MCFA FIRE', pos: [12.0, 3.8, 5.5], rotY: -0.38, color: '#dc2626' },
       { title: 'CONCOURSE · GATE A1–B5', sub: 'FIDS · MASTER CLOCK · PAS', pos: [0, 4.3, -3.2], rotY: 0, color: '#4f46e5' },
-      { title: 'BAGGAGE CLAIM HALL', sub: 'BIDS BELT 03 · FISHEYE CCTV', pos: [-12.8, 3.8, -7.5], rotY: 0.35, color: '#f59e0b' },
+      { title: 'BAGGAGE CLAIM HALL', sub: 'BIDS BELT 7 · FISHEYE CCTV', pos: [-12.8, 3.8, -7.5], rotY: 0.35, color: '#f59e0b' },
       { title: 'RUANG SERVER ELBAN', sub: 'NVR · FIBER · PAS/AAS · PABX', pos: [14.5, 3.8, -7.5], rotY: -0.45, color: '#0d9488' },
       { title: 'PERIMETER AIRSIDE (PIDS)', sub: 'RADAR SCANNING · PTZ CCTV', pos: [0, 4.2, -16.2], rotY: 0, color: '#0d9488' },
       { title: 'POS RADIO & CRASH CAR', sub: 'HT · MOBILE RIG · IGCS', pos: [-17.2, 3.8, -14.2], rotY: 0.55, color: '#059669' },
@@ -970,20 +1000,31 @@ export class AirportSceneController {
     beltRing.scale.set(1, 1, 0.22);
     beltRing.position.y = 0.56;
 
-    // Overhead BIDS Display Monitor
-    const bidsTex = createBidsTexture(maxAniso);
-    const bidsPole = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 2.35, 14), matSteel);
-    bidsPole.position.y = 1.4;
-    const bidsFrame = new THREE.Mesh(new THREE.BoxGeometry(2.35, 1.18, 0.18), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 }));
-    bidsFrame.position.y = 2.55;
-    const bidsFace = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.2, 1.04),
-      new THREE.MeshStandardMaterial({ map: bidsTex, emissiveMap: bidsTex, emissive: 0xffffff, emissiveIntensity: 0.5 })
-    );
-    bidsFace.position.set(0, 2.55, 0.095);
-    const bidsBack = bidsFace.clone();
-    bidsBack.rotation.y = Math.PI;
-    bidsBack.position.z = -0.095;
+    // Overhead Authentic InJourney Airports BIDS Display Monitor (Belt 7 · Front, Side & Rear Reference Match)
+    const bidsAssembly = new THREE.Group();
+    bidsAssembly.rotation.y = 0.78;
+
+    // Twin brushed-steel architectural mast columns rising from carousel island into rear VESA bracket
+    const matMast = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.36, metalness: 0.78 });
+    const mastBasePlate = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 0.08, 20), matSteel);
+    mastBasePlate.position.set(0, 0.56, -0.14);
+    const mastL = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.046, 2.02, 16), matMast);
+    mastL.position.set(-0.15, 1.56, -0.14);
+    const mastR = mastL.clone();
+    mastR.position.x = 0.15;
+    const mastCrossbar = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, 0.06), matMast);
+    mastCrossbar.position.set(0, 2.55, -0.14);
+
+    const bidsUnit = createBidsDisplayUnit(maxAniso);
+    bidsUnit.group.scale.setScalar(1.65);
+    bidsUnit.group.position.set(0, 2.56, 0);
+    this.bidsUpdater = bidsUnit.updater;
+
+    bidsAssembly.add(mastBasePlate, mastL, mastR, mastCrossbar, bidsUnit.group);
+    bidsAssembly.traverse((o) => {
+      o.userData.systemId = 'sys-bids';
+      o.userData.componentId = 'comp-bids-display';
+    });
 
     // Ceiling Hikvision Vandal Fisheye 360° Camera mounted FLUSH directly onto Plafon (y = 7.16)
     const fisheyeMount = new THREE.Group();
@@ -1010,11 +1051,11 @@ export class AirportSceneController {
       group.add(bag);
     }
 
-    group.add(base, beltRing, bidsPole, bidsFrame, bidsFace, bidsBack, fisheyeMount);
+    group.add(base, beltRing, bidsAssembly, fisheyeMount);
     group.traverse((o) => {
       if (!o.userData.systemId) {
-        o.userData.systemId = 'sys-fids-pas';
-        o.userData.componentId = 'comp-fids-displays';
+        o.userData.systemId = 'sys-bids';
+        o.userData.componentId = 'comp-bids-display';
       }
     });
     this.scene.add(group);
@@ -1027,75 +1068,61 @@ export class AirportSceneController {
     group.position.set(14.8, 0, -7.6);
     group.rotation.y = -0.45;
 
-    // Raised anti-static server room platform
+    // Raised anti-static server room platform with illuminated blue cold-aisle trim
     const platform = new THREE.Mesh(
-      new THREE.BoxGeometry(5.6, 0.14, 3.2),
-      new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.55, metalness: 0.3 })
+      new THREE.BoxGeometry(6.6, 0.14, 3.2),
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.52, metalness: 0.35 })
     );
     platform.position.y = 0.07;
+    platform.receiveShadow = true;
     group.add(platform);
 
-    const rackSpecs: Array<{
+    const trimStrip = new THREE.Mesh(
+      new THREE.BoxGeometry(6.48, 0.025, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.9 })
+    );
+    trimStrip.position.set(0, 0.135, 1.595);
+    group.add(trimStrip);
+
+    // 3x Authentic 42U Network Racks (Patch Panel, MikroTik CRS326 & CCR2004, 18.5" KVM, Dell R360, APC Smart-UPS 3000VA, 6-Way Schuko PDU)
+    const rackConfigs: Array<{
       x: number;
       sysId: SystemId;
       compId: string;
-      accent: number;
+      frontDoorAngle: number;
+      kvmOpen: number;
     }> = [
-      { x: -1.6, sysId: 'sys-cctv-pids', compId: 'comp-cctv-nvr', accent: 0x0d9488 },
-      { x: 0, sysId: 'sys-fids-pas', compId: 'comp-pas-aas', accent: 0x4f46e5 },
-      { x: 1.6, sysId: 'sys-radio-igcs', compId: 'comp-igcs-pabx', accent: 0x059669 },
+      { x: -1.95, sysId: 'sys-cctv-pids', compId: 'comp-cctv-nvr', frontDoorAngle: -0.28, kvmOpen: 0 },
+      { x: -0.65, sysId: 'sys-pas', compId: 'comp-pas-aas', frontDoorAngle: -0.92, kvmOpen: 0.72 },
+      { x: 0.65, sysId: 'sys-radio-igcs', compId: 'comp-igcs-pabx', frontDoorAngle: -0.24, kvmOpen: 0 },
     ];
 
-    const rackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.65 });
-    const nvrFaceTex = createHikvisionNvrFrontTexture(maxAniso);
-    const nvrFaceMat = new THREE.MeshStandardMaterial({
-      map: nvrFaceTex,
-      emissiveMap: nvrFaceTex,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.16,
-      roughness: 0.2,
-      metalness: 0.35,
-    });
-
-    for (const r of rackSpecs) {
-      const rack = new THREE.Group();
-      rack.position.set(r.x, 1.24, 0);
-      const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.2, 0.92), rackMat);
-      rack.add(body);
-
-      for (let u = 0; u < 6; u++) {
-        if (r.compId === 'comp-cctv-nvr') {
-          const nvrBlade = new THREE.Mesh(
-            new THREE.BoxGeometry(0.96, 0.21, 0.06),
-            [rackMat, rackMat, rackMat, rackMat, nvrFaceMat, rackMat]
-          );
-          nvrBlade.position.set(0, 0.75 - u * 0.3, 0.45);
-          rack.add(nvrBlade);
-        } else {
-          const blade = new THREE.Mesh(
-            new THREE.BoxGeometry(0.94, 0.22, 0.06),
-            new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.7 })
-          );
-          blade.position.set(0, 0.75 - u * 0.3, 0.45);
-          const ledBar = new THREE.Mesh(
-            new THREE.BoxGeometry(0.28, 0.03, 0.08),
-            new THREE.MeshStandardMaterial({ color: r.accent, emissive: r.accent, emissiveIntensity: 0.85 })
-          );
-          ledBar.position.set(-0.26, 0.75 - u * 0.3, 0.46);
-          rack.add(blade, ledBar);
-        }
-      }
-
-      rack.traverse((c) => {
-        c.userData.systemId = r.sysId;
-        c.userData.componentId = r.compId;
+    for (const cfg of rackConfigs) {
+      const builtRack = create42UNetworkRack(maxAniso, { compactMode: true });
+      builtRack.rootGroup.position.set(cfg.x, 0.14, 0);
+      builtRack.frontDoorPivot.rotation.y = cfg.frontDoorAngle;
+      builtRack.updateKvmPose(cfg.kvmOpen);
+      builtRack.rootGroup.traverse((c) => {
+        c.userData.systemId = cfg.sysId;
+        c.userData.componentId = cfg.compId;
+        c.userData.isServerRackTwin = true;
       });
-      group.add(rack);
+      group.add(builtRack.rootGroup);
+      this.serverRoomRacks.push(builtRack);
     }
+
+    // 4th Dedicated Rack: Authentic BOSCH 42U PAS/AAS Power Amplifier & OMNEO Rack
+    const boschPasRack = createBoschPasRack(maxAniso);
+    boschPasRack.group.position.set(2.12, 0.14, 0);
+    boschPasRack.group.traverse((c) => {
+      c.userData.systemId = 'sys-pas';
+      c.userData.componentId = 'comp-pas-aas';
+    });
+    group.add(boschPasRack.group);
 
     this.scene.add(group);
     this.interactiveRoots.push(group);
-    this.collisionBoxes.push({ minX: 11.8, maxX: 17.8, minZ: -9.8, maxZ: -5.4 });
+    this.collisionBoxes.push({ minX: 11.4, maxX: 18.2, minZ: -9.8, maxZ: -5.4 });
   }
 
   private buildDistributedCctvNetwork(maxAniso: number): void {
@@ -1247,6 +1274,9 @@ export class AirportSceneController {
       spk.group.scale.setScalar(CEILING_SPK_SCALE);
       // Back-can sits recessed in ceiling plenum so bezel trim ring touches Plafon flush at y = 7.16
       spk.group.position.set(cfg.pos[0], CEILING_Y + 0.09 * CEILING_SPK_SCALE, cfg.pos[1]);
+      spk.group.traverse((c) => {
+        if (!c.userData.isWaveEffect) c.userData.componentId = 'comp-pas-ceiling';
+      });
       pasNetGroup.add(spk.group);
       registerSpeaker(cfg.zone, spk);
     });
@@ -1317,14 +1347,19 @@ export class AirportSceneController {
       spk.group.rotation.order = 'YXZ';
       spk.group.rotation.y = cfg.rotY;
       spk.group.rotation.x = cfg.pitchX;
+      spk.group.traverse((c) => {
+        if (!c.userData.isWaveEffect) c.userData.componentId = 'comp-pas-horn';
+      });
       pasNetGroup.add(spk.group);
       registerSpeaker(cfg.zone, spk);
     });
 
     pasNetGroup.traverse((o) => {
       if (o.userData.isWaveEffect) return;
-      o.userData.systemId = 'sys-fids-pas';
-      o.userData.componentId = 'comp-pas-aas';
+      o.userData.systemId = 'sys-pas';
+      if (!o.userData.componentId) {
+        o.userData.componentId = 'comp-pas-aas';
+      }
       if ((o as THREE.Mesh).isMesh) {
         o.castShadow = true;
         o.receiveShadow = true;
@@ -1749,6 +1784,17 @@ export class AirportSceneController {
         });
         return;
       }
+      if (hitObj.userData.isServerRackTwin) {
+        this.callbacks.onHoverTelemetry({
+          systemId: hitObj.userData.systemId ?? 'sys-cctv-pids',
+          componentId: hitObj.userData.componentId,
+          zoneId: 'server',
+          isServerRackTwin: true,
+          screenX: e.clientX,
+          screenY: e.clientY,
+        });
+        return;
+      }
       if (hitObj.userData.systemId) {
         this.callbacks.onHoverTelemetry({
           systemId: hitObj.userData.systemId,
@@ -1797,6 +1843,10 @@ export class AirportSceneController {
       }
       if (hitObj.userData.isTocConsole) {
         this.callbacks.onOpenTocModal();
+        return;
+      }
+      if (hitObj.userData.isServerRackTwin) {
+        this.callbacks.onOpenServerRackTwin?.();
         return;
       }
       if (hitObj.userData.systemId) {
@@ -1882,9 +1932,14 @@ export class AirportSceneController {
 
     // 1. Update Cinematic Intro or Free-Walk / Smooth Teleport
     if (this.introPlaying) {
-      this.introProgress += delta / this.introDuration;
+      const nowMs = performance.now();
+      if (this.introStartTimeMs === null) {
+        this.introStartTimeMs = nowMs;
+      }
+      this.introProgress = (nowMs - this.introStartTimeMs) / (this.introDuration * 1000);
       if (this.introProgress >= 1) {
         this.introPlaying = false;
+        this.callbacks.onIntroZoneChange?.('lobby');
         this.callbacks.onIntroStateChange(false);
         this.teleportToZone('lobby');
       } else {
@@ -1897,6 +1952,16 @@ export class AirportSceneController {
         this.camera.getWorldDirection(_lookDir);
         this.yaw = Math.atan2(-_lookDir.x, -_lookDir.z);
         this.pitch = Math.asin(THREE.MathUtils.clamp(_lookDir.y, -0.9, 0.9));
+
+        const zoneIdx = Math.min(
+          this.introZoneSequence.length - 1,
+          Math.floor(this.introProgress * this.introZoneSequence.length)
+        );
+        const tourZone = this.introZoneSequence[zoneIdx];
+        if (tourZone !== this.lastIntroZone) {
+          this.lastIntroZone = tourZone;
+          this.callbacks.onIntroZoneChange?.(tourZone);
+        }
       }
     } else {
       if (this.transitionActive) {
@@ -1975,6 +2040,7 @@ export class AirportSceneController {
       const fidsUnit = this.equipmentUnits.get('sys-fids-pas');
       fidsUnit?.animatedParts.fidsUpdater?.(d);
       fidsUnit?.animatedParts.clockUpdater?.(d);
+      this.bidsUpdater?.(d);
     }
 
     // Animate live 3D PAS acoustic soundwave rings for actively broadcasting terminal zones
@@ -2000,10 +2066,63 @@ export class AirportSceneController {
       });
     }
 
+    // Animate Concourse standalone PAS exhibition rig (cable data-flow packets & demo speakers)
+    const pasUnit = this.equipmentUnits.get('sys-pas');
+    const pasRig = pasUnit?.animatedParts.pasRig;
+    if (pasRig) {
+      const isLive = this.pasBroadcastMode !== 'idle';
+      const isEmergency = this.pasBroadcastMode === 'emergency';
+      for (const stream of pasRig.streams) {
+        const spd = isLive ? (isEmergency ? 0.85 : 0.58) : 0.14;
+        const pCol = isLive ? (isEmergency ? 0xef4444 : stream.activeColor) : stream.baseColor;
+        stream.cableMat.emissiveIntensity = isLive ? 0.75 : 0.14;
+        stream.packets.forEach((orb, idx) => {
+          const t = (elapsed * spd + idx / stream.packets.length) % 1;
+          orb.position.copy(stream.curve.getPoint(t));
+          orb.scale.setScalar(isLive ? 1.1 : 0.52);
+          const pMat = orb.material as THREE.MeshBasicMaterial;
+          pMat.color.setHex(pCol);
+          pMat.opacity = isLive ? 0.95 : 0.35;
+        });
+      }
+      for (const spkSet of pasRig.speakers) {
+        const allRings = [spkSet.handle.waveRing, ...spkSet.extraWaveRings];
+        if (isLive) {
+          const wCol = isEmergency ? 0xef4444 : spkSet.id === 'horn' ? 0xf59e0b : 0x38bdf8;
+          spkSet.handle.statusLedMat.emissive.setHex(wCol);
+          spkSet.handle.statusLedMat.emissiveIntensity = 1.45;
+          allRings.forEach((ring, idx) => {
+            ring.visible = true;
+            const cyc = (elapsed * (isEmergency ? 2.1 : 1.35) + idx / allRings.length) % 1;
+            ring.scale.setScalar(0.9 + cyc * 2.3);
+            if (spkSet.handle.direction === 'down') ring.position.y = -0.14 - cyc * 0.8;
+            else ring.position.z = (spkSet.handle.speakerType === 'horn' ? 0.42 : 0.22) + cyc * 0.8;
+            const rMat = ring.material as THREE.MeshBasicMaterial;
+            rMat.color.setHex(wCol);
+            rMat.opacity = (1 - cyc) * 0.78;
+          });
+        } else {
+          allRings.forEach((ring) => {
+            ring.visible = false;
+          });
+        }
+      }
+    }
+
     // Subtle architectural neon breathing shimmer on the Walk-In ElBan Entrance Gate
     if (this.entranceGate) {
       this.entranceGate.cyanNeonMat.emissiveIntensity = 1.45 + Math.sin(elapsed * 2.2) * 0.22;
       this.entranceGate.amberNeonMat.emissiveIntensity = 1.32 + Math.cos(elapsed * 2.2) * 0.2;
+    }
+
+    // Spin 4-fan active roof exhaust impellers on the 42U Server Room Racks
+    if (this.serverRoomRacks.length > 0) {
+      const fanStep = delta * 8.5;
+      for (const rack of this.serverRoomRacks) {
+        for (const imp of rack.roofFanImpellers) {
+          imp.rotation.y += fanStep;
+        }
+      }
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -2030,6 +2149,11 @@ export class AirportSceneController {
     el.removeEventListener('pointerdown', this.onPointerDownBound);
     el.removeEventListener('wheel', this.onWheelBound);
     el.removeEventListener('webglcontextlost', this.onContextLostBound);
+
+    for (const rack of this.serverRoomRacks) {
+      rack.dispose();
+    }
+    this.serverRoomRacks = [];
 
     disposeObject3D(this.scene);
     this.renderer.dispose();
